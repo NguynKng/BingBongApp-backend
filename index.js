@@ -17,8 +17,10 @@ const corsOptions = {
 app.use(morgan("dev"))
 app.use(cors(corsOptions))
 app.use(express.json())
-app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser())
+
+// Serve static files from public directory (path already set up)
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/api/v1', require("./routes/index"))
 

@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
 
     // Thông tin cá nhân
     fullName: { type: String, required: true },
-    dateOfBirth: { type: Date, require: true },
+    dateOfBirth: { type: String, require: true },
     gender: { type: String, enum: ["Male", "Female", "Other"], default: "Other" },
     phoneNumber: { type: String, unique: true, sparse: true },
     address: { type: String, default: "" },
