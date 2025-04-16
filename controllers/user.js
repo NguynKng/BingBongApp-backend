@@ -1,13 +1,5 @@
 const userModel = require("../models/userModel");
-const fs = require('fs');
-const path = require('path');
-
-// Helper function to ensure directory exists
-const ensureDirectoryExists = (directory) => {
-    if (!fs.existsSync(directory)) {
-        fs.mkdirSync(directory, { recursive: true });
-    }
-};
+const { removeDiacritics } = require("../helper/helper");
 
 // Set avatar for user
 const setAvatar = async (req, res) => {
@@ -97,4 +89,172 @@ const getUserProfile = async (req, res) => {
     }
 };
 
-module.exports = { setAvatar, setCoverPhoto, getUserProfile };
+const getUserByName = async (req, res) => {
+    try {
+        const { name } = req.query;
+
+        if (!name || name.trim() === "") {
+            return res.status(400).json({ success: false, message: "Name query is required" });
+        }
+
+        const normalizedInput = removeDiacritics(name.toLowerCase());
+
+        const users = await userModel.find().select("fullName email avatar"); // exclude password
+
+        const matchedUsers = users.filter((user) => {
+            const normalizedFullName = removeDiacritics(user.fullName.toLowerCase());
+            return normalizedFullName.includes(normalizedInput);
+        });
+
+        return res.status(200).json({
+            success: true,
+            users: matchedUsers,
+        });
+    } catch (error) {
+        console.error("Search user error:", error);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Gửi lời mời kết bạn
+const sendFriendRequest = async (req, res) => {
+    try {
+        const senderId = req.user._id;
+        const receiverId = req.params.userId;
+
+        if (senderId.toString() === receiverId) {
+            return res.status(400).json({ success: false, message: "Không thể gửi lời mời cho chính mình" });
+        }
+
+        const receiver = await userModel.findById(receiverId);
+        if (!receiver) return res.status(404).json({ success: false, message: "User not found" });
+
+        if (receiver.friendRequests.includes(senderId) || receiver.friends.includes(senderId)) {
+            return res.status(400).json({ success: false, message: "Đã gửi lời mời hoặc đã là bạn" });
+        }
+
+        receiver.friendRequests.push(senderId);
+        await receiver.save();
+
+        const updatedSender = await userModel.findById(senderId).select("-password");
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã gửi lời mời kết bạn",
+            user: updatedSender
+        });
+    } catch (err) {
+        console.error("Send friend request error:", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Hủy lời mời kết bạn
+const cancelFriendRequest = async (req, res) => {
+    try {
+        const senderId = req.user._id;
+        const receiverId = req.params.userId;
+
+        const receiver = await userModel.findById(receiverId);
+        if (!receiver) return res.status(404).json({ success: false, message: "User not found" });
+
+        receiver.friendRequests = receiver.friendRequests.filter(
+            (id) => id.toString() !== senderId.toString()
+        );
+        await receiver.save();
+
+        const updatedSender = await userModel.findById(senderId).select("-password");
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã hủy lời mời kết bạn",
+            user: updatedSender
+        });
+    } catch (err) {
+        console.error("Cancel friend request error:", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Chấp nhận kết bạn
+const acceptFriendRequest = async (req, res) => {
+    try {
+        const receiverId = req.user._id;
+        const senderId = req.params.userId;
+
+        const receiver = await userModel.findById(receiverId);
+        const sender = await userModel.findById(senderId);
+
+        if (!receiver || !sender) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (!receiver.friendRequests.includes(senderId)) {
+            return res.status(400).json({ success: false, message: "Không có lời mời kết bạn" });
+        }
+
+        receiver.friends.push(senderId);
+        sender.friends.push(receiverId);
+
+        receiver.friendRequests = receiver.friendRequests.filter(
+            (id) => id.toString() !== senderId.toString()
+        );
+
+        await receiver.save();
+        await sender.save();
+
+        const updatedReceiver = await userModel.findById(receiverId).select("-password");
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã chấp nhận lời mời kết bạn",
+            user: updatedReceiver
+        });
+    } catch (err) {
+        console.error("Accept friend request error:", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Hủy kết bạn
+const removeFriend = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const friendId = req.params.userId;
+
+        const user = await userModel.findById(userId);
+        const friend = await userModel.findById(friendId);
+
+        if (!user || !friend) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        user.friends = user.friends.filter((id) => id.toString() !== friendId.toString());
+        friend.friends = friend.friends.filter((id) => id.toString() !== userId.toString());
+
+        await user.save();
+        await friend.save();
+
+        const updatedUser = await userModel.findById(userId).select("-password");
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã hủy kết bạn",
+            user: updatedUser
+        });
+    } catch (err) {
+        console.error("Remove friend error:", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+module.exports = { 
+    setAvatar, 
+    setCoverPhoto, 
+    getUserProfile, 
+    getUserByName, 
+    sendFriendRequest,
+    cancelFriendRequest,
+    acceptFriendRequest,
+    removeFriend
+ };
