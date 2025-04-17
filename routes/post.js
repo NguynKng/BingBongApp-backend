@@ -7,7 +7,10 @@ const {
     getFeed,
     updatePost, 
     deletePost, 
-    deletePostImage 
+    deletePostImage,
+    addComment,
+    addReply,
+    getCommentsByPost
 } = require('../controllers/post');
 const { protect } = require('../middleware/auth');
 const { uploadOptionalImagesMiddleware } = require('../middleware/upload');
@@ -35,5 +38,10 @@ router.delete('/:postId', protect, deletePost);
 
 // Delete a specific image from a post
 router.delete('/:postId/images/:imageIndex', protect, deletePostImage);
+
+// Comment routes
+router.post('/:postId/comments', protect, addComment);
+router.post('/comments/:commentId/replies', protect, addReply);
+router.get('/:postId/comments', protect, getCommentsByPost);
 
 module.exports = router;

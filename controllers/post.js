@@ -374,6 +374,141 @@ const getFeed = async (req, res) => {
     }
 };
 
+// Add a comment to a post
+const addComment = async (req, res) => {
+    try {
+        const { postId } = req.params;
+        const { content } = req.body;
+        const userId = req.user._id;
+
+        // Validate input
+        if (!content || content.trim() === '') {
+            return res.status(400).json({ success: false, message: "Comment content is required" });
+        }
+
+        // Check if post exists
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({ success: false, message: "Post not found" });
+        }
+
+        // Create new comment
+        const newComment = new commentModel({
+            post: postId,
+            user: userId,
+            content,
+            parent: null // This is a direct comment on a post
+        });
+
+        post.comments.push(newComment._id); // Add comment ID to the post's comments array
+
+        await newComment.save();
+        await post.save(); // Save the post to update its comments array
+
+        // Populate user info in the comment
+        const populatedComment = await commentModel.findById(newComment._id)
+            .populate('user', 'fullName avatar');
+
+        return res.status(201).json({
+            success: true,
+            message: "Comment added successfully",
+            comment: populatedComment
+        });
+    } catch (error) {
+        console.error("Add comment error:", error);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Add a reply to a comment
+const addReply = async (req, res) => {
+    try {
+        const { commentId } = req.params;
+        const { content } = req.body;
+        const userId = req.user._id;
+
+        // Validate input
+        if (!content || content.trim() === '') {
+            return res.status(400).json({ success: false, message: "Reply content is required" });
+        }
+
+        // Check if the parent comment exists
+        const parentComment = await commentModel.findById(commentId);
+        if (!parentComment) {
+            return res.status(404).json({ success: false, message: "Parent comment not found" });
+        }
+
+        // Create new reply
+        const newReply = new commentModel({
+            post: parentComment.post, // Use the same post ID as the parent comment
+            user: userId,
+            content,
+            parent: commentId
+        });
+
+        await newReply.save();
+
+        // Populate user info in the reply
+        const populatedReply = await commentModel.findById(newReply._id)
+            .populate('user', 'fullName avatar');
+
+        return res.status(201).json({
+            success: true,
+            message: "Reply added successfully",
+            comment: populatedReply
+        });
+    } catch (error) {
+        console.error("Add reply error:", error);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
+// Get all comments for a specific post (including replies)
+const getCommentsByPost = async (req, res) => {
+    try {
+        const { postId } = req.params;
+
+        // Kiểm tra post tồn tại
+        const post = await postModel.findById(postId);
+        if (!post) {
+            return res.status(404).json({ success: false, message: "Post not found" });
+        }
+
+        // Lấy tất cả comment gốc (parent: null) và populate replies
+        const comments = await commentModel.find({ post: postId, parent: null })
+            .sort({ createdAt: -1 }) // mới nhất lên trước
+            .populate('user', 'fullName avatar')
+            .lean(); // sử dụng lean() để dễ dàng gán thêm trường replies
+
+        // Lấy tất cả replies của bài post
+        const replies = await commentModel.find({ post: postId, parent: { $ne: null } })
+            .populate('user', 'fullName avatar')
+            .lean();
+
+        // Gán replies vào từng comment chính
+        const commentMap = {};
+        comments.forEach(comment => {
+            comment.replies = [];
+            commentMap[comment._id.toString()] = comment;
+        });
+
+        replies.forEach(reply => {
+            const parentId = reply.parent.toString();
+            if (commentMap[parentId]) {
+                commentMap[parentId].replies.push(reply);
+            }
+        });
+
+        return res.status(200).json({
+            success: true,
+            comments: Object.values(commentMap)
+        });
+    } catch (error) {
+        console.error("Get comments error:", error);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+};
+
 module.exports = {
     createPost,
     getPosts,
@@ -382,5 +517,8 @@ module.exports = {
     getFeed,
     updatePost,
     deletePost,
-    deletePostImage
+    deletePostImage,
+    addComment,
+    addReply,
+    getCommentsByPost
 };
