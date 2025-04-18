@@ -73,7 +73,14 @@ const getUserProfile = async (req, res) => {
         // If userId is provided in params, use it, otherwise use the authenticated user's ID
         const userId = req.params.userId || req.user._id;
         
-        const user = await userModel.findById(userId).select('-password');
+        const user = await userModel.findById(userId).select('-password').populate({
+            path: 'friends',
+            select: 'fullName avatar' // chỉ lấy các field cần thiết
+        })
+        .populate({
+            path: 'friendRequests',
+            select: 'fullName avatar'
+        });;
         
         if (!user) {
             return res.status(404).json({ success: false, message: "User not found" });
