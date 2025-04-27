@@ -4,5 +4,6 @@ router.use("/auth", require('./auth'))
 router.use("/user", require('./user'))
 router.use("/posts", require('./post'))
 router.use('/quiz', require ('./quiz'));
+router.use("/messages", require('./message'))
 
 module.exports = router

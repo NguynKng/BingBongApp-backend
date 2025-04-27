@@ -4,7 +4,6 @@ const Quiz = require('../models/quizModel'); // Import model Quiz
 const getAllQuizzes = async (req, res) => {
    try {
      const quizzes = await Quiz.find().sort({ createdAt: -1 });
-     console.log("Quizzes: ", quizzes); // Log the quizzes to check the data
      res.json({ success: true, quizzes });
    } catch (err) {
      res.status(500).json({ success: false, message: 'Server error' });
