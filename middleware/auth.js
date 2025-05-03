@@ -6,7 +6,7 @@ const userModel = require('../models/userModel');
 const protect = async (req, res, next) => {
     try {
         const token = req.cookies['jwt-bingbong-token'];
-
+        console.log("📌 Token từ cookie:", token);
         if (!token) {
             return res.status(401).json({ 
                 success: false, 
@@ -16,7 +16,7 @@ const protect = async (req, res, next) => {
 
         // Verify token
         const decoded = jwt.verify(token, SECRET_KEY);
-
+        console.log("📌 Thông tin sau khi decode JWT:", decoded);
         // Find user by id
         const user = await userModel.findById(decoded.userId).select('-password');
 
@@ -78,5 +78,6 @@ const optionalAuth = async (req, res, next) => {
         next();
     }
 };
+
 
 module.exports = { protect, optionalAuth };

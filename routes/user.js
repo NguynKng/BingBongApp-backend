@@ -29,4 +29,10 @@ router.post("/friend-request/accept/:userId", protect, acceptFriendRequest);
 // Hủy kết bạn
 router.delete("/friend/:userId", protect, removeFriend);
 
+router.get("/me", protect, (req, res) => {
+  console.log("✅ Người dùng xác thực thành công:", req.user);
+  res.json(req.user);
+});
+
+  
 module.exports = router;
