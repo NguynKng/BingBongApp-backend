@@ -14,6 +14,7 @@ const {
 } = require('../controllers/post');
 const { protect } = require('../middleware/auth');
 const { uploadOptionalImagesMiddleware } = require('../middleware/upload');
+const { reactToPost } = require("../controllers/reaction")
 
 // Create a new post (with or without images)
 router.post('/', protect, uploadOptionalImagesMiddleware, createPost);
@@ -43,5 +44,6 @@ router.delete('/:postId/images/:imageIndex', protect, deletePostImage);
 router.post('/:postId/comments', protect, addComment);
 router.post('/comments/:commentId/replies', protect, addReply);
 router.get('/:postId/comments', protect, getCommentsByPost);
+router.post('/react', protect, reactToPost)
 
 module.exports = router;

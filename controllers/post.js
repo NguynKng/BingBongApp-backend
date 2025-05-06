@@ -107,7 +107,13 @@ const getPosts = async (req, res) => {
                     select: 'fullName avatar'
                 },
                 options: { sort: { createdAt: -1 }, limit: 5 }
-            });
+            }).populate({
+                path: 'reactions',
+                populate: {
+                    path: 'user',
+                    select: 'fullName avatar'
+                }
+            })
         
         // Get total count for pagination
         const total = await postModel.countDocuments();
@@ -148,6 +154,12 @@ const getPostsByUser = async (req, res) => {
                     select: 'fullName avatar'
                 },
                 options: { sort: { createdAt: -1 }, limit: 5 }
+            }).populate({
+                path: 'reactions',
+                populate: {
+                    path: 'user',
+                    select: 'fullName avatar'
+                }
             });
         
         // Get total count for pagination
@@ -182,6 +194,12 @@ const getPost = async (req, res) => {
                     select: 'fullName avatar'
                 },
                 options: { sort: { createdAt: -1 } }
+            }).populate({
+                path: 'reactions',
+                populate: {
+                    path: 'user',
+                    select: 'fullName avatar'
+                }
             });
         
         if (!post) {
@@ -354,6 +372,12 @@ const getFeed = async (req, res) => {
                     select: 'fullName avatar'
                 },
                 options: { sort: { createdAt: -1 }, limit: 5 }
+            }).populate({
+                path: 'reactions',
+                populate: {
+                    path: 'user',
+                    select: 'fullName avatar'
+                }
             });
         
         // Get total count for pagination
