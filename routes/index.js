@@ -6,4 +6,7 @@ router.use("/posts", require('./post'))
 router.use('/quiz', require ('./quiz'));
 router.use("/messages", require('./message'))
 router.use("/rank", require('./rank'))
+router.use("/quizScore", require('./quiz/quizScore'))
+router.use("/userScore", require('./quiz/userScore'))
+
 module.exports = router
