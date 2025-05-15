@@ -223,6 +223,41 @@ const acceptFriendRequest = async (req, res) => {
     }
 };
 
+const declineFriendRequest = async (req, res) => {
+    try {
+        const receiverId = req.user._id;
+        const senderId = req.params.userId;
+
+        const receiver = await userModel.findById(receiverId);
+        const sender = await userModel.findById(senderId);
+
+        if (!receiver || !sender) {
+            return res.status(404).json({ success: false, message: "User not found" });
+        }
+
+        if (!receiver.friendRequests.includes(senderId)) {
+            return res.status(400).json({ success: false, message: "Không có lời mời kết bạn" });
+        }
+
+        receiver.friendRequests = receiver.friendRequests.filter(
+            (id) => id.toString() !== senderId.toString()
+        );
+
+        await receiver.save();
+
+        const updatedReceiver = await userModel.findById(receiverId).select("-password");
+
+        return res.status(200).json({
+            success: true,
+            message: "Đã từ chối lời mời kết bạn",
+            user: updatedReceiver
+        });
+    } catch (err) {
+        console.error("Decline friend request error:", err);
+        return res.status(500).json({ success: false, message: "Something went wrong" });
+    }
+}
+
 // Hủy kết bạn
 const removeFriend = async (req, res) => {
     try {
@@ -263,5 +298,6 @@ module.exports = {
     sendFriendRequest,
     cancelFriendRequest,
     acceptFriendRequest,
-    removeFriend
+    removeFriend,
+    declineFriendRequest
  };

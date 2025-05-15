@@ -68,11 +68,13 @@ const createPost = async (req, res) => {
                 // The post is created, but without images
             }
         }
+        const populatedPost = await postModel.findById(newPost._id)
+                    .populate('author', 'fullName avatar')
 
         return res.status(201).json({
             success: true,
             message: "Đăng bài thành công",
-            post: newPost
+            post: populatedPost
         });
     } catch (error) {
         console.error("Create post error:", error);
@@ -285,11 +287,12 @@ const deletePost = async (req, res) => {
         }
         
         // Delete post from database
-        await postModel.findByIdAndDelete(postId);
+        const deletedPost = await postModel.findByIdAndDelete(postId);
         
         return res.status(200).json({
             success: true,
-            message: "Post deleted successfully"
+            message: "Post deleted successfully",
+            data: deletedPost
         });
     } catch (error) {
         console.error("Delete post error:", error);
