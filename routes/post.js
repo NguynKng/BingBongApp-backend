@@ -23,13 +23,13 @@ router.post('/', protect, uploadOptionalImagesMiddleware, createPost);
 router.get('/feed', protect, getFeed);
 
 // Get all posts (with pagination)
-router.get('/', getPosts);
+router.get('/', protect, getPosts);
 
 // Get posts by specific user
-router.get('/user/:userId', getPostsByUser);
+router.get('/user/:userId', protect, getPostsByUser);
 
 // Get a specific post
-router.get('/:postId', getPost);
+router.get('/:postId',protect, getPost);
 
 // Update post (content, caption)
 router.put('/:postId', protect, updatePost);

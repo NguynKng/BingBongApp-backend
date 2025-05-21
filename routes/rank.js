@@ -4,7 +4,7 @@ const { getLeaderboard, getMyScore, addOrUpdateScore } = require("../controllers
 const { protect, optionalAuth } = require("../middleware/auth");
 
 // ✅ Lấy bảng xếp hạng tổng điểm người dùng
-router.get("/leaderboard", optionalAuth, getLeaderboard);
+router.get("/leaderboard", protect, getLeaderboard);
 
 // ✅ Lấy tổng điểm người dùng hiện tại (phải đăng nhập)
 router.get("/mine", protect, getMyScore);
