@@ -10,8 +10,8 @@ const { protect, optionalAuth } = require("../middleware/auth");
 const router = express.Router();
 
 // Không cần đăng nhập vẫn xem được
-router.get("/", optionalAuth, getAllQuizzes);
-router.get("/:id", optionalAuth, getQuizById);
+router.get("/", protect, getAllQuizzes);
+router.get("/:id", protect, getQuizById);
 
 // Phải đăng nhập mới được tạo và xóa quiz
 router.post("/", protect, createQuiz);

@@ -8,5 +8,8 @@ router.use("/messages", require('./message'))
 router.use("/rank", require('./rank'))
 router.use("/quizScore", require('./quiz/quizScore'))
 router.use("/userScore", require('./quiz/userScore'))
+router.use("/events", require('./sse'))
+router.use("/notifications", require('./notification'))
+router.use("/crawlblog", require('./blog'))
 
 module.exports = router
