@@ -1,5 +1,6 @@
 const userModel = require("../models/userModel");
 const { removeDiacritics } = require("../helper/helper");
+const { sendNotificationToUser } = require("../controllers/notification");
 
 // Set avatar for user
 const setAvatar = async (req, res) => {
@@ -144,6 +145,7 @@ const sendFriendRequest = async (req, res) => {
         await receiver.save();
 
         const updatedSender = await userModel.findById(senderId).select("-password");
+        await sendNotificationToUser(receiverId, senderId, "friend_request")
 
         return res.status(200).json({
             success: true,
@@ -211,6 +213,7 @@ const acceptFriendRequest = async (req, res) => {
         await sender.save();
 
         const updatedReceiver = await userModel.findById(receiverId).select("-password");
+        await sendNotificationToUser(senderId, receiverId, "accepted_request")
 
         return res.status(200).json({
             success: true,

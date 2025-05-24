@@ -1,6 +1,7 @@
 const PostModel = require("../models/postModel")
 const ReactionModel = require("../models/reactionModel")
 const mongoose = require("mongoose")
+const { sendNotificationToUser } = require("./notification")
 
 const reactToPost = async (req, res) => {
     try {
@@ -47,6 +48,11 @@ const reactToPost = async (req, res) => {
       post.reactions.push(newReaction._id)
       await post.save()
       const populatedReaction = await newReaction.populate('user', 'fullName avatar')
+
+      if(post.author.toString() !== userId.toString()){
+        // Create notification for the post author
+        await sendNotificationToUser(post.author, userId, "react_post", postId)
+      }
   
       return res.status(201).json({ message: 'Reacted successfully', success: true, data: populatedReaction })
     } catch (error) {

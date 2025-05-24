@@ -2,7 +2,7 @@ const postModel = require("../models/postModel");
 const commentModel = require("../models/commentModel"); // Add this import for the Comment model
 const fs = require("fs");
 const path = require("path");
-const { createAndSendNotificationForFriend } = require("./notification")
+const { createAndSendNotificationForFriend, sendNotificationToUser } = require("./notification")
 
 // Create a new post (with optional images)
 const createPost = async (req, res) => {
@@ -164,16 +164,11 @@ const getPosts = async (req, res) => {
 const getPostsByUser = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
 
     // Get posts by this user sorted by creation date (newest first)
     const posts = await postModel
       .find({ author: userId })
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
       .populate("author", "fullName avatar")
       .populate({
         path: "comments",
@@ -181,7 +176,7 @@ const getPostsByUser = async (req, res) => {
           path: "user",
           select: "fullName avatar",
         },
-        options: { sort: { createdAt: -1 }, limit: 5 },
+        options: { sort: { createdAt: -1 } },
       })
       .populate({
         path: "reactions",
@@ -191,17 +186,10 @@ const getPostsByUser = async (req, res) => {
         },
       });
 
-    // Get total count for pagination
-    const total = await postModel.countDocuments({ author: userId });
 
     return res.status(200).json({
       success: true,
-      posts,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-      },
+      posts
     });
   } catch (error) {
     console.error("Get posts by user error:", error);
@@ -212,7 +200,7 @@ const getPostsByUser = async (req, res) => {
 };
 
 // Get a specific post by ID
-const getPost = async (req, res) => {
+const getPostById = async (req, res) => {
   try {
     const postId = req.params.postId;
 
@@ -414,9 +402,6 @@ const deletePostImage = async (req, res) => {
 const getFeed = async (req, res) => {
   try {
     const userId = req.user._id;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
 
     // Get the current user to check friends (for future ranking)
     const currentUser = await require("../models/userModel").findById(userId);
@@ -432,8 +417,6 @@ const getFeed = async (req, res) => {
     const posts = await postModel
       .find()
       .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
       .populate("author", "fullName avatar")
       .populate({
         path: "comments",
@@ -441,7 +424,7 @@ const getFeed = async (req, res) => {
           path: "user",
           select: "fullName avatar",
         },
-        options: { sort: { createdAt: -1 }, limit: 5 },
+        options: { sort: { createdAt: -1 } },
       })
       .populate({
         path: "reactions",
@@ -451,17 +434,9 @@ const getFeed = async (req, res) => {
         },
       });
 
-    // Get total count for pagination
-    const total = await postModel.countDocuments();
-
     return res.status(200).json({
       success: true,
-      posts,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-      },
+      posts
     });
   } catch (error) {
     console.error("Get feed error:", error);
@@ -510,6 +485,10 @@ const addComment = async (req, res) => {
     const populatedComment = await commentModel
       .findById(newComment._id)
       .populate("user", "fullName avatar");
+      if(post.author.toString() !== userId.toString()){
+        // Create notification for the post author
+        await sendNotificationToUser(post.author, userId, "comment_post", postId)
+      }
 
     return res.status(201).json({
       success: true,
@@ -629,7 +608,7 @@ const getCommentsByPost = async (req, res) => {
 module.exports = {
   createPost,
   getPosts,
-  getPost,
+  getPostById,
   getPostsByUser,
   getFeed,
   updatePost,
