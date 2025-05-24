@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { 
     createPost, 
     getPosts, 
-    getPost, 
+    getPostById, 
     getPostsByUser,
     getFeed,
     updatePost, 
@@ -29,7 +29,7 @@ router.get('/', protect, getPosts);
 router.get('/user/:userId', protect, getPostsByUser);
 
 // Get a specific post
-router.get('/:postId',protect, getPost);
+router.get('/:postId', protect, getPostById);
 
 // Update post (content, caption)
 router.put('/:postId', protect, updatePost);

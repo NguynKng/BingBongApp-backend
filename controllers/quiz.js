@@ -42,11 +42,12 @@ const getQuizById = async (req, res) => {
 // Tạo quiz mới (cần đăng nhập)
 const createQuiz = async (req, res) => {
   try {
-    const { title, description, questions } = req.body;
+    const { title, description, questions, topics } = req.body;
 
     const newQuiz = await Quiz.create({
       title,
       description,
+        topic: topics || [], // Nếu không có topics, để trống
       questions,
       createdBy: req.user._id,
     });

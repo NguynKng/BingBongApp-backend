@@ -31,6 +31,11 @@ const mongoose = require("mongoose");
      default: '',
      trim: true,
    },
+   topic: {
+     type: [],
+     required: [true, 'Category is required'],
+     trim: true,
+   },
    questions: [questionSchema],
    createdBy: {
      type: mongoose.Schema.Types.ObjectId,
