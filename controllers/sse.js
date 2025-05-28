@@ -18,17 +18,17 @@ const sseHandler = (req, res) => {
   // Save client
   clients[userId] = res;
 
-  const interval = setInterval(() => {
-    const data = {
-      message: `ping ${new Date().toISOString()}`,
-      clients: Object.keys(clients),
-    };
-    res.write(`data: ${JSON.stringify(data)}\n\n`);
-  }, 15000); // ping every 15s
+//   const interval = setInterval(() => {
+//     const data = {
+//       message: `ping ${new Date().toISOString()}`,
+//       clients: Object.keys(clients),
+//     };
+//     res.write(`data: ${JSON.stringify(data)}\n\n`);
+//   }, 15000); // ping every 15s
 
   // Remove client on disconnect
   req.on("close", () => {
-    clearInterval(interval);
+    //clearInterval(interval);
     delete clients[userId];
   });
 };
