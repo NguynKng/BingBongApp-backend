@@ -485,7 +485,8 @@ const addComment = async (req, res) => {
     const populatedComment = await commentModel
       .findById(newComment._id)
       .populate("user", "fullName avatar");
-      if(post.author.toString() !== userId.toString()){
+
+      if(post.author.toString() != userId.toString()){
         // Create notification for the post author
         await sendNotificationToUser(post.author, userId, "comment_post", postId)
       }

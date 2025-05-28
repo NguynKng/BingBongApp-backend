@@ -3,6 +3,7 @@ const { Server } = require("socket.io");
 const Message = require("../models/messageModel");
 const User = require("../models/userModel");
 const { FRONTEND_URL } = require("../config/envVars");
+const { clients } = require("../controllers/sse");
 
 function setupSocket(server) {
   const io = new Server(server, {
@@ -80,6 +81,15 @@ function setupSocket(server) {
         // Lookup sender/receiver user data
         const sender = await User.findById(senderId).select("_id fullName avatar");
         const receiver = await User.findById(receiverId).select("_id fullName avatar");
+
+        const client = clients[receiverId.toString()];
+        if (client) {
+          const data = JSON.stringify({
+            type: "new_message",
+            sender: sender
+          });
+          client.write(`data: ${data}\n\n`);
+        }
 
         // Send recent chat info
         const recentMessage = {
