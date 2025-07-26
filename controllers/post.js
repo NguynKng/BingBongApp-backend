@@ -87,7 +87,7 @@ const createPost = async (req, res) => {
       .populate("author", "fullName avatar");
 
       if(populatedPost) {
-        await createAndSendNotificationForFriend(author, "new_post", populatedPost._id, populatedPost)
+        await createAndSendNotificationForFriend(author, "new_post", populatedPost._id)
       }
 
     return res.status(201).json({
@@ -488,7 +488,7 @@ const addComment = async (req, res) => {
 
       if(post.author.toString() != userId.toString()){
         // Create notification for the post author
-        await sendNotificationToUser(post.author, userId, "comment_post", postId)
+        await sendNotificationToUser(post.author.toString(), userId, "comment_post", postId)
       }
 
     return res.status(201).json({
