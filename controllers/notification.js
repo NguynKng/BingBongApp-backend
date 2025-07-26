@@ -1,13 +1,12 @@
-const { clients } = require("./sse");
 const UserModel = require("../models/userModel");
 const Notification = require("../models/notificationModel");
+const { getSocketInstance } = require("../sockets/socketInstance");
 
 const sendNotificationToUser = async (
   targetUserId,
   actorId,
   type,
-  postId = null,
-  populatedPost = null
+  postId = null
 ) => {
   const actor = await UserModel.findById(actorId).select("fullName avatar");
   if (!actor) throw new Error("Actor not found");
@@ -21,29 +20,23 @@ const sendNotificationToUser = async (
     createdAt: new Date(),
   });
 
-  const populatedNotification = await notification.populate(
-    "actor",
-    "fullName avatar"
-  );
-
-  const client = clients[targetUserId.toString()];
-  if (client) {
-    const data = JSON.stringify({
-      type,
-      notification: populatedNotification,
-      post: populatedPost,
-    });
-    client.write(`data: ${data}\n\n`);
-  }
-
   await notification.save();
+
+  // Populate actor sau khi save
+  const populatedNotification = await Notification.findById(notification._id)
+    .populate("actor", "fullName avatar")
+    .lean();
+
+  const io = getSocketInstance();
+  io.to(targetUserId).emit("new_notification", {
+    notification: populatedNotification,
+  });
 };
 
 const createAndSendNotificationForFriend = async (
   actorId,
   type,
-  postId = null,
-  populatedPost = null
+  postId = null
 ) => {
   const user = await UserModel.findById(actorId).select("friends");
   if (!user) {
@@ -67,15 +60,10 @@ const createAndSendNotificationForFriend = async (
       "fullName avatar"
     );
 
-    const client = clients[friendId.toString()];
-    if (client) {
-      const data = JSON.stringify({
-        type,
-        notification: populatedNotification,
-        post: populatedPost,
-      });
-      client.write(`data: ${data}\n\n`);
-    }
+    const io = getSocketInstance();
+    io.to(friendId.toString()).emit("new_notification", {
+      notification: populatedNotification,
+    });
 
     notificationsToSave.push(notification.save());
   }
@@ -142,9 +130,9 @@ const markAsAllRead = async (req, res) => {
       { user: userId, isRead: false },
       { $set: { isRead: true } }
     );
-    const updatedNotifications = await Notification.find({ user: userId }).sort(
-      { createdAt: -1 }
-    );
+    const updatedNotifications = await Notification.find({ user: userId })
+      .sort({ createdAt: -1 })
+      .populate("actor", "fullName avatar");
 
     res.status(200).json({
       success: true,
@@ -160,7 +148,7 @@ const markAsAllRead = async (req, res) => {
 };
 
 module.exports = {
-    sendNotificationToUser,
+  sendNotificationToUser,
   createAndSendNotificationForFriend,
   getNotification,
   markAsAllRead,

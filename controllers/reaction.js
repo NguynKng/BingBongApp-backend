@@ -51,7 +51,7 @@ const reactToPost = async (req, res) => {
 
       if(post.author.toString() !== userId.toString()){
         // Create notification for the post author
-        await sendNotificationToUser(post.author, userId, "react_post", postId)
+        await sendNotificationToUser(post.author.toString(), userId, "react_post", postId)
       }
   
       return res.status(201).json({ message: 'Reacted successfully', success: true, data: populatedReaction })

@@ -47,7 +47,7 @@ const createQuiz = async (req, res) => {
     const newQuiz = await Quiz.create({
       title,
       description,
-        topic: topics || [], // Nếu không có topics, để trống
+      topic: topics || [], // If no topics, use empty array
       questions,
       createdBy: req.user._id,
     });
