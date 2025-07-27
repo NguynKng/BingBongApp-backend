@@ -12,4 +12,4 @@ const generateToken = (userId, res) => {
     return token
 }
 
-module.exports = generateToken
+module.exports = { generateToken }
