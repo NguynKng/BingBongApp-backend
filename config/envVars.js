@@ -7,4 +7,6 @@ module.exports = {
     SECRET_KEY: process.env.SECRET_KEY,
     NODE_ENV: process.env.NODE_ENV,
     FRONTEND_URL: process.env.FRONTEND_URL,
+    EMAIL_USER: process.env.EMAIL_USER,
+    EMAIL_PASS: process.env.EMAIL_PASS,
 }

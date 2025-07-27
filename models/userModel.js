@@ -18,6 +18,7 @@ const UserSchema = new mongoose.Schema({
     // Mối quan hệ
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Lời mời kết bạn
+    isVerified: { type: Boolean, default: false }, // Trạng thái xác thực email
 
     // Cài đặt quyền riêng tư
     privacy: {
