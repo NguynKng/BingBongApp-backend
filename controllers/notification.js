@@ -101,7 +101,6 @@ const getNotification = async (req, res) => {
       .skip(skip)
       .limit(limit)
       .populate("actor", "fullName avatar")
-      .populate("post");
 
     const total = await Notification.countDocuments({ user: userId });
 
