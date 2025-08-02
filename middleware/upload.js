@@ -67,28 +67,6 @@ const createPostStorage = multer.diskStorage({
     }
 });
 
-// Configure storage for existing post images
-const postImageStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const userId = req.user._id;
-        const postId = req.params.postId;
-        
-        // Store images directly in the post directory
-        const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'user', userId.toString(), 'post', postId.toString());
-        
-        // Create directory if it doesn't exist
-        ensureDirectoryExists(uploadPath);
-        
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        // Create unique filename using timestamp + original extension
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const ext = path.extname(file.originalname);
-        cb(null, 'post-image-' + uniqueSuffix + ext);
-    }
-});
-
 // File filtering
 const fileFilter = (req, file, cb) => {
     // Accept images only
@@ -178,5 +156,6 @@ const uploadOptionalImagesMiddleware = (req, res, next) => {
 module.exports = { 
     uploadAvatarMiddleware, 
     uploadCoverPhotoMiddleware,
-    uploadOptionalImagesMiddleware
+    uploadOptionalImagesMiddleware,
+    ensureDirectoryExists
 };

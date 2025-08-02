@@ -1,5 +1,11 @@
 const Message = require("../models/messageModel");
 const { getAIResponse } = require("../services/gemini/client");
+const { getSocketInstance } = require("../sockets/socketInstance");
+const { userSocketMap } = require("../sockets/chatSocket");
+const User = require("../models/userModel");
+const fs = require("fs");
+const path = require("path");
+const { ensureDirectoryExists } = require("../middleware/upload");
 
 const getAllChats = async (req, res) => {
   try {
@@ -46,6 +52,7 @@ const getAllChats = async (req, res) => {
         $project: {
           lastMessage: {
             text: "$lastMessage.text",
+            media: "$lastMessage.media",
             createdAt: "$lastMessage.createdAt",
             isSentByMe: {
               $cond: {
@@ -102,7 +109,143 @@ const generateAiResponse = async (req, res) => {
   }
 };
 
+const sendMessage = async (req, res) => {
+  const io = getSocketInstance();
+  const { senderId, receiverId, text } = req.body;
+  if (!senderId || !receiverId) {
+    return res
+      .status(400)
+      .json({ message: "Sender, receiver and text are required" });
+  }
+  try {
+    const newMessage = await Message.create({
+      senderId,
+      receiverId,
+      text,
+      createdAt: new Date(),
+    });
+    // Process uploaded files if there are any
+    if (req.files && req.files.length > 0) {
+      try {
+        // Create directory for post images with postId
+        const uploadDir = path.join(
+          __dirname,
+          "..",
+          "public",
+          "uploads",
+          "messages-images"
+        );
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Move files from temp directory to final location
+        const mediaPaths = [];
+
+        for (const file of req.files) {
+          const tempPath = file.path;
+          const fileName = path.basename(tempPath);
+          const targetPath = path.join(uploadDir, fileName);
+
+          // Move the file
+          if (fs.existsSync(tempPath)) {
+            // Create the target directory if it doesn't exist
+            ensureDirectoryExists(path.dirname(targetPath));
+
+            // Copy the file to the new location
+            fs.copyFileSync(tempPath, targetPath);
+
+            // Delete the original file
+            fs.unlinkSync(tempPath);
+
+            // Add the path to our array
+            mediaPaths.push(`/uploads/messages-images/${fileName}`);
+          }
+        }
+
+        // Add media paths to the post
+        newMessage.media = mediaPaths;
+        await newMessage.save();
+      } catch (error) {
+        console.error("Error processing uploaded files:", error);
+      }
+    }
+    const messagePayload = {
+      _id: newMessage._id,
+      senderId,
+      receiverId,
+      text,
+      media: newMessage.media || [],
+      createdAt: newMessage.createdAt,
+    };
+    // Emit to receiver if online
+    if (userSocketMap[receiverId]) {
+      io.to(receiverId).emit("receiveMessage", messagePayload);
+    }
+
+    // Emit to sender if online
+    if (userSocketMap[senderId]) {
+      io.to(senderId).emit("receiveMessage", messagePayload);
+    }
+
+    // Lookup sender/receiver user data
+    const sender = await User.findById(senderId).select("_id fullName avatar");
+    const receiver = await User.findById(receiverId).select(
+      "_id fullName avatar"
+    );
+
+    // Send recent chat info
+    const recentMessage = {
+      lastMessage: {
+        media: newMessage.media || [],
+        text: newMessage.text,
+        createdAt: newMessage.createdAt,
+      },
+      senderId,
+      receiverId,
+    };
+
+    io.to(receiverId).emit("getNewMessage", {
+      _id: sender?._id,
+      fullName: sender?.fullName,
+      avatar: sender?.avatar,
+    });
+
+    if (userSocketMap[receiverId]) {
+      io.to(receiverId).emit("newMessage", {
+        ...recentMessage,
+        participant: {
+          _id: sender?._id,
+          fullName: sender?.fullName,
+          avatar: sender?.avatar,
+        },
+      });
+    }
+
+    if (userSocketMap[senderId]) {
+      io.to(senderId).emit("newMessage", {
+        ...recentMessage,
+        participant: {
+          _id: receiver?._id,
+          fullName: receiver?.fullName,
+          avatar: receiver?.avatar,
+        },
+      });
+    }
+    return res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+    });
+  } catch (error) {
+    console.error("❌ sendMessage error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to send message" });
+  }
+};
+
 module.exports = {
   getAllChats,
   generateAiResponse,
+  sendMessage,
 };
