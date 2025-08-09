@@ -6,6 +6,8 @@ const User = require("../models/userModel");
 const fs = require("fs");
 const path = require("path");
 const { ensureDirectoryExists } = require("../middleware/upload");
+const axios = require("axios");
+const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 
 const getAllChats = async (req, res) => {
   try {
@@ -93,6 +95,27 @@ const getAllChats = async (req, res) => {
   }
 };
 
+const getHistoryChat = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { userChatId } = req.params;
+    if (!userChatId) {
+      return res.status(400).json({ message: "User chat ID is required" });
+    }
+    const messages = await Message.find({
+      $or: [
+        { senderId: userId, receiverId: userChatId },
+        { senderId: userChatId, receiverId: userId },
+      ],
+    }).sort({ timestamp: 1 });
+
+    return res.status(200).json({ success: true, data: messages });
+  } catch (error) {
+    console.error("❌ getHistoryChat error:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const generateAiResponse = async (req, res) => {
   const { prompt } = req.body;
 
@@ -118,58 +141,27 @@ const sendMessage = async (req, res) => {
       .json({ message: "Sender, receiver and text are required" });
   }
   try {
+    const mediaPaths = [];
+    // Process uploaded files if there are any
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const tempPath = file.path;
+        const fileName = path.basename(tempPath);
+
+        // Move the file
+        if (fs.existsSync(tempPath)) {
+          mediaPaths.push(`/uploads/messages-images/${fileName}`);
+        }
+      }
+    }
     const newMessage = await Message.create({
       senderId,
       receiverId,
       text,
+      media: mediaPaths,
       createdAt: new Date(),
     });
-    // Process uploaded files if there are any
-    if (req.files && req.files.length > 0) {
-      try {
-        // Create directory for post images with postId
-        const uploadDir = path.join(
-          __dirname,
-          "..",
-          "public",
-          "uploads",
-          "messages-images"
-        );
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
 
-        // Move files from temp directory to final location
-        const mediaPaths = [];
-
-        for (const file of req.files) {
-          const tempPath = file.path;
-          const fileName = path.basename(tempPath);
-          const targetPath = path.join(uploadDir, fileName);
-
-          // Move the file
-          if (fs.existsSync(tempPath)) {
-            // Create the target directory if it doesn't exist
-            ensureDirectoryExists(path.dirname(targetPath));
-
-            // Copy the file to the new location
-            fs.copyFileSync(tempPath, targetPath);
-
-            // Delete the original file
-            fs.unlinkSync(tempPath);
-
-            // Add the path to our array
-            mediaPaths.push(`/uploads/messages-images/${fileName}`);
-          }
-        }
-
-        // Add media paths to the post
-        newMessage.media = mediaPaths;
-        await newMessage.save();
-      } catch (error) {
-        console.error("Error processing uploaded files:", error);
-      }
-    }
     const messagePayload = {
       _id: newMessage._id,
       senderId,
@@ -244,8 +236,28 @@ const sendMessage = async (req, res) => {
   }
 };
 
+const translateText = async (req, res) => {
+  const { text } = req.body;
+  try {
+    const response = await axios.post(
+      `${BACKEND_AI_PYTHON_URL}/translate-text`,
+      {
+        text,
+      }
+    );
+    return res.json(response.data);
+  } catch (error) {
+    console.error("❌ translateText error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to translate text" });
+  }
+};
+
 module.exports = {
   getAllChats,
   generateAiResponse,
   sendMessage,
+  getHistoryChat,
+  translateText,
 };

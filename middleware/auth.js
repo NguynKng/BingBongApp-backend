@@ -39,7 +39,7 @@ const protect = async (req, res, next) => {
         if (error.name === 'TokenExpiredError') {
             return res.status(401).json({
                 success: false,
-                message: 'Token expired',
+                message: 'Phiên đăng nhập hết han, vui lòng đăng nhập lại',
             });
         }
 

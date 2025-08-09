@@ -2,7 +2,13 @@ const postModel = require("../models/postModel");
 const commentModel = require("../models/commentModel"); // Add this import for the Comment model
 const fs = require("fs");
 const path = require("path");
-const { createAndSendNotificationForFriend, sendNotificationToUser } = require("./notification")
+const {
+  createAndSendNotificationForFriend,
+  sendNotificationToUser,
+} = require("./notification");
+const FormData = require("form-data");
+const axios = require("axios");
+const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 
 // Create a new post (with optional images)
 const createPost = async (req, res) => {
@@ -13,82 +19,65 @@ const createPost = async (req, res) => {
     if (!content) {
       return res
         .status(400)
-        .json({ success: false, message: "Hãy thêm nội dung cho bài" });
+        .json({ success: false, message: "Hãy thêm nội dung cho bài đăng." });
     }
 
-    // Create a new post first
-    const newPost = new postModel({
-      author,
-      content,
-      media: [], // Will be populated if images are uploaded
-    });
+    const formData = new FormData();
+    formData.append("content", content);
+    if (req.files) {
+      for (const file of req.files) {
+        const fileStream = fs.createReadStream(file.path); // 🔥 Đọc từ file đã lưu
 
-    // Save the post to get the ID
-    await newPost.save();
-
-    // Process uploaded files if there are any
-    if (req.files && req.files.length > 0) {
-      try {
-        const postId = newPost._id;
-        const userId = req.user._id;
-
-        // Create directory for post images with postId
-        const uploadDir = path.join(
-          __dirname,
-          "..",
-          "public",
-          "uploads",
-          "user",
-          userId.toString(),
-          "post",
-          postId.toString()
-        );
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-
-        // Move files from temp directory to final location
-        const mediaPaths = [];
-
-        for (const file of req.files) {
-          const tempPath = file.path;
-          const fileName = path.basename(tempPath);
-          const targetPath = path.join(uploadDir, fileName);
-
-          // Move the file
-          if (fs.existsSync(tempPath)) {
-            // Create the target directory if it doesn't exist
-            ensureDirectoryExists(path.dirname(targetPath));
-
-            // Copy the file to the new location
-            fs.copyFileSync(tempPath, targetPath);
-
-            // Delete the original file
-            fs.unlinkSync(tempPath);
-
-            // Add the path to our array
-            mediaPaths.push(
-              `/uploads/user/${userId}/post/${postId}/${fileName}`
-            );
-          }
-        }
-
-        // Add media paths to the post
-        newPost.media = mediaPaths;
-        await newPost.save();
-      } catch (error) {
-        console.error("Error processing uploaded files:", error);
-        // If there's an error with the files, we'll continue anyway
-        // The post is created, but without images
+        formData.append("images", fileStream, {
+          filename: file.originalname,
+          contentType: file.mimetype,
+        });
       }
     }
+
+    const flaskResponse = await axios.post(
+      `${BACKEND_AI_PYTHON_URL}/analyze-post`,
+      formData,
+      {
+        headers: formData.getHeaders(),
+      }
+    );
+    if (flaskResponse.data.isPostSafeForChild == false) {
+      return res.status(400).json({
+        success: false,
+        message: "Bài viết có nội dung bạo lực không thể đăng.",
+      });
+    }
+    const mediaPaths = [];
+
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const tempPath = file.path;
+        const fileName = path.basename(tempPath);
+        // Move the file
+        if (fs.existsSync(tempPath)) {
+          // Add the path to our array
+          mediaPaths.push(`/uploads/user/${author}/posts/${fileName}`);
+        }
+      }
+    }
+    const newPost = await postModel.create({
+      author,
+      content,
+      media: mediaPaths,
+    });
+
     const populatedPost = await postModel
       .findById(newPost._id)
       .populate("author", "fullName avatar");
 
-      if(populatedPost) {
-        await createAndSendNotificationForFriend(author, "new_post", populatedPost._id)
-      }
+    if (populatedPost) {
+      await createAndSendNotificationForFriend(
+        author,
+        "new_post",
+        populatedPost._id
+      );
+    }
 
     return res.status(201).json({
       success: true,
@@ -100,13 +89,6 @@ const createPost = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Something went wrong" });
-  }
-};
-
-// Helper function to ensure directory exists
-const ensureDirectoryExists = (dirPath) => {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
   }
 };
 
@@ -186,10 +168,9 @@ const getPostsByUser = async (req, res) => {
         },
       });
 
-
     return res.status(200).json({
       success: true,
-      posts
+      posts,
     });
   } catch (error) {
     console.error("Get posts by user error:", error);
@@ -258,12 +239,10 @@ const updatePost = async (req, res) => {
     }
 
     if (post.author.toString() !== userId.toString()) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "You are not authorized to update this post",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this post",
+      });
     }
 
     // Update fields if provided
@@ -307,12 +286,10 @@ const deletePost = async (req, res) => {
     }
 
     if (post.author.toString() !== userId.toString()) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "You are not authorized to delete this post",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this post",
+      });
     }
 
     // Delete post media files
@@ -357,12 +334,10 @@ const deletePostImage = async (req, res) => {
     }
 
     if (post.author.toString() !== userId.toString()) {
-      return res
-        .status(403)
-        .json({
-          success: false,
-          message: "You are not authorized to modify this post",
-        });
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to modify this post",
+      });
     }
 
     // Check if the image index is valid
@@ -436,7 +411,7 @@ const getFeed = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      posts
+      posts,
     });
   } catch (error) {
     console.error("Get feed error:", error);
@@ -486,10 +461,15 @@ const addComment = async (req, res) => {
       .findById(newComment._id)
       .populate("user", "fullName avatar");
 
-      if(post.author.toString() != userId.toString()){
-        // Create notification for the post author
-        await sendNotificationToUser(post.author.toString(), userId, "comment_post", postId)
-      }
+    if (post.author.toString() != userId.toString()) {
+      // Create notification for the post author
+      await sendNotificationToUser(
+        post.author.toString(),
+        userId,
+        "comment_post",
+        postId
+      );
+    }
 
     return res.status(201).json({
       success: true,
