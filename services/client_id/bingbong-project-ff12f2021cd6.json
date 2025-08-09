@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "bingbong-project",
+  "private_key_id": "ff12f2021cd680ad521532e17d6546d39f175b2a",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDChst/sauhds9o\nquztHexccfcYAL44iWDgagBB9Ln3cUTTOOn7qtUZqEjj0qXuYVBP9VaIONssAEJd\nnLbORVs2N7T8sugFwPEe3FPRMrkOnyDaNdIPJFBiPS2wDIbF72cQyluuBbqQ0vzI\nPjpj3waOPHmS6VsPfgbHhTh63/DApPsiaUsVzLuSnBHZ/ZClVSCEQWMSQqulDfbY\n6DmvX/pZ4VwwkXouhn1apftWhYBc+A02nkA3QWtOPEKlzAjNWpgqQ/rWgi85gvc1\nQa4V+G/Ei5pNc+L5vMROrGOdSOPNnGmQjam8ZP0i42HQ57Vck59WIZZPvrpoKlev\n7k19QYXzAgMBAAECggEAA6nq7pvCYhx3vulBOcdk1T+RlNJ8GAUrsu5W1OcuvXn/\nqYQakWff8vIYIAUD+l+7gICxbDK4m1/h4Bt8ge63z2dF3GCOPYArH8FXPssYGy4P\naKy3fnDY/BCvlJpCdjs9E17hp9Rpys0pKlL/DInTI3NWItiMTi1keUuJYHRpTLzb\nnrJOoR5Nar2gGzS+XOraBkQstdzi5jFLtWSeP+C4wrIxJjyFM6SNXy7180XOgUyl\nG9l5lXdblLpGqVFCOu3+LUrqVxqfetB+JF09TPwkA7m8E16cPXroFC1p/jx5rwBW\nbrPQdkB9h27tr88XMYk96pqqleGpvXsjGJmBpMGlWQKBgQD3Tk8SxydAQ7t1vkLu\n6MgQrLmH/TYL4qbZyUOfSOdPQ9u21i3Hr/iDyzp+RODnF63V0BuIFAR3B8qH1/H8\nmFxaUmZVXw2nGRvOO1+h0L7BqxbWovJV0z4xkNXn83i3Vmf93FAPUauvgRuxWmD0\n8Vhb7Hp3nKj5fPRu1JEw6GIuBwKBgQDJXXwu4tAYTO7QVrsRHHabDTSxhoLkHZ47\nrrg973/LffBijP6Ioo4Ke8lGRF4yuWcHhuHTY2fgRypNuipWAItARdZk9h1fP0+p\n8GbaYP6SRDt+guOGW0geX4HUKDrLKmS5VQ/w9TUY1H99SjBnYjkYcZ7ajxWONt4h\nDC9dPFJttQKBgQCVT6JOJA9+rWYw4H5o4AJqjt41TJuk8WLreqhpMwr0wHOXIBjj\nx0qzx6+5LLzcyV8bCFqW/f70HrAY9DgV2adooPdH8+u6R16SVSaX/AAvzawsSpUl\nXDTgmCGNuWHYz0JZ8vojRZvyinC902NWf6BpX41RSjR67QZnI8/FR4h/YQKBgQCT\nqc1WKJeHKmt6Ng/KFYBYZY+9mzFDDQErLQ4IxSeG1xy/eDtzgRj+URYhRCN7uP/3\nwg66UEwtaKJ6C0nedVmoUU5ODTkuzqOhsBwMilJEemrSdDNbJHc3ZrwzEylCMR1Z\n1ynwfjBou/Odshjax2mtJizig0jAWDX+MAxPp9uefQKBgCCcZQxF2ZEV5cXM1oDX\nOysNcbwvIpqGedFKr7a6VNvOxMGMsuWQCl+3gGDgyPITIZ521x/TIKndPmfYUbnF\nxWwmAK75b77sctstrm5NiaFf1UMZ2f9aHnt+YbhYvKs7E7LKneDjD/pXuNQngViv\nBe/RPAUK+ZtKOqBG2yo7cwPe\n-----END PRIVATE KEY-----\n",
+  "client_email": "bingbong-project@bingbong-project.iam.gserviceaccount.com",
+  "client_id": "117125824066144983932",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/bingbong-project%40bingbong-project.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

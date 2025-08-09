@@ -2,9 +2,10 @@
 const { Server } = require("socket.io");
 const Message = require("../models/messageModel");
 const { FRONTEND_URL } = require("../config/envVars");
-const { setSocketInstance } = require("./socketInstance")
+const { setSocketInstance } = require("./socketInstance");
 
 const userSocketMap = {};
+const rooms = {};
 
 function setupSocket(server) {
   const io = new Server(server, {
@@ -33,23 +34,6 @@ function setupSocket(server) {
       io.emit("getOnlineUsers", Object.keys(userSocketMap));
     });
 
-    socket.on("loadChatHistory", async ({ userId1, userId2 }) => {
-      if (!userId1 || !userId2) return;
-      try {
-        const messages = await Message.find({
-          $or: [
-            { senderId: userId1, receiverId: userId2 },
-            { senderId: userId2, receiverId: userId1 },
-          ],
-        }).sort({ timestamp: 1 });
-
-        socket.emit("loadChatHistory", messages);
-        console.log(`[LOAD HISTORY] ${messages.length} messages sent`);
-      } catch (error) {
-        console.error("[LOAD HISTORY ERROR]:", error);
-      }
-    });
-
     socket.on("disconnect", () => {
       console.log(`[SOCKET DISCONNECTED] ${socket.id}`);
       for (const userId in userSocketMap) {
@@ -67,5 +51,5 @@ function setupSocket(server) {
 
 module.exports = {
   setupSocket,
-  userSocketMap
+  userSocketMap,
 };
