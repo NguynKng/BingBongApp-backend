@@ -10,9 +10,9 @@ const { setupSocket } = require("./sockets/chatSocket");
 const http = require("http");
 
 const corsOptions = {
-  origin: FRONTEND_URL, // Change this to your frontend's URL
+  origin: [FRONTEND_URL, "http://192.168.2.245:5173"], // Change this to your frontend's URL
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
-  credentials: true, // Allow credentials
+  credentials: true, // Allow credentials   
 };
 
 app.use(morgan("dev"));
@@ -33,7 +33,7 @@ const server = http.createServer(app);
 
 setupSocket(server); // <-- Setup socket with the server
 
-server.listen(PORT, () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server started at http://localhost:${PORT}`);
   connectDB();
 });
