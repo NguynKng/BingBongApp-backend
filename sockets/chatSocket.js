@@ -1,6 +1,11 @@
 // sockets/chatSocket.js
 const { Server } = require("socket.io");
-const { FRONTEND_URL, TURN_HOST, TURN_PORT, TURN_SECRET } = require("../config/envVars");
+const {
+  FRONTEND_URL,
+  TURN_HOST,
+  TURN_PORT,
+  TURN_SECRET,
+} = require("../config/envVars");
 const { setSocketInstance } = require("./socketInstance");
 const crypto = require("crypto");
 
@@ -113,47 +118,82 @@ function setupSocket(server) {
       // setTimeout(() => { io.to(callerSocketId).emit('call-timeout', { callId }) }, 30000);
     });
 
-    socket.on("accept-call", ({ to /* caller userId */, from /* callee userId */, callId }) => {
-      const callers = getSocketsByUser(to);
-      // provide roomId = callId so both can join the same room
-      callers.forEach((sid) => io.to(sid).emit("call-accepted", { from, callId }));
-    });
+    socket.on(
+      "accept-call",
+      ({
+        to /* caller userId */,
+        from /* callee userId */,
+        callId,
+        metadata,
+      }) => {
+        const callers = getSocketsByUser(to);
+        // provide roomId = callId so both can join the same room
+        callers.forEach((sid) =>
+          io.to(sid).emit("call-accepted", { from, callId, metadata })
+        );
+      }
+    );
 
     socket.on("reject-call", ({ to, from, callId, reason }) => {
       const callers = getSocketsByUser(to);
-      callers.forEach((sid) => io.to(sid).emit("call-rejected", { from, callId, reason }));
+      callers.forEach((sid) =>
+        io.to(sid).emit("call-rejected", { from, callId, reason })
+      );
     });
 
-    // Join/leave room & signaling
-    socket.on("join", ({ roomId, userId }) => {
+    // ---------- Room / signaling handlers ----------
+    socket.on("join-room", (roomId) => {
       if (!roomId) return;
       socket.join(roomId);
-      socket.data.roomId = roomId;
       addRoomSocket(roomId, socket.id);
+      const count = rooms[roomId] ? rooms[roomId].size : 0;
+      console.log(`[join-room] ${socket.id} joined ${roomId} (count=${count})`);
 
-      const count = rooms[roomId].size;
+      // send room info to the joining socket
       io.to(socket.id).emit("room-info", { count });
-      socket.to(roomId).emit("peer-joined", { socketId: socket.id, userId });
-      console.log(`[JOIN] ${userId} joined room ${roomId} (count=${count})`);
+
+      // notify others in room that a peer joined
+      socket.to(roomId).emit("peer-joined", {
+        socketId: socket.id,
+        userId: socket.data.userId || null,
+      });
     });
 
-    socket.on("offer", ({ roomId, sdp }) => {
-      socket.to(roomId).emit("offer", { sdp, from: socket.id });
+    // generic signal forward (simple-peer)
+    socket.on("signal", ({ roomId, data, fromUserId }) => {
+      if (!roomId || !data) return;
+      // forward to other participants in the room
+      // emit event name "signal" with { data, from }
+      socket.to(roomId).emit("signal", {
+        data,
+        from: fromUserId || socket.data.userId || null,
+      });
     });
-    socket.on("answer", ({ roomId, sdp }) => {
-      socket.to(roomId).emit("answer", { sdp, from: socket.id });
-    });
-    socket.on("ice-candidate", ({ roomId, candidate }) => {
-      socket.to(roomId).emit("ice-candidate", { candidate, from: socket.id });
+    socket.on("audio-toggle", ({ roomId, userId, audioOn }) => {
+      // forward tới mọi socket trong room (trừ sender)
+      socket.to(roomId).emit("peer-audio-toggle", { userId, audioOn });
     });
 
+    // inside io.on("connection", socket => { ... })
+    socket.on("video-toggle", ({ roomId, userId, videoOn }) => {
+      if (!roomId) return;
+      // broadcast to others in room
+      socket.to(roomId).emit("peer-video-toggle", { userId, videoOn });
+    });
+
+    // end call / leave room
     socket.on("end-call", ({ roomId }) => {
+      if (!roomId) return;
       socket.to(roomId).emit("end-call", { from: socket.id });
+      // remove this socket from room map
+      removeRoomSocket(roomId, socket.id);
+      socket.leave(roomId);
     });
 
     socket.on("leave", ({ roomId }) => {
-      socket.leave(roomId);
+      if (!roomId) return;
       removeRoomSocket(roomId, socket.id);
+      socket.leave(roomId);
       socket.to(roomId).emit("peer-left", { socketId: socket.id });
     });
 
