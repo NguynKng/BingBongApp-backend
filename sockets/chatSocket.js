@@ -101,21 +101,20 @@ function setupSocket(server) {
     });
 
     // Call flow
-    socket.on("call-user", ({ to, from, callId, metadata }) => {
+    socket.on("call-user", ({ to, from, callId, metadata, toData }) => {
       if (!to) return;
       const targets = getSocketsByUser(to);
-      if (targets.length === 0) {
-        socket.emit("call-rejected", { reason: "user-offline", callId });
-        return;
-      }
-      io.to(from).emit("call-initiated", { to, callId, metadata });
+      io.to(from).emit("call-initiated", { to, callId, toData });
       // Notify callee sockets
       targets.forEach((sid) => {
         io.to(sid).emit("incoming-call", { from, callId, metadata });
       });
 
       // OPTIONAL: set server-side timeout to auto-reject if no response in X seconds
-      // setTimeout(() => { io.to(callerSocketId).emit('call-timeout', { callId }) }, 30000);
+      setTimeout(() => { 
+        io.to(from).emit('call-timeout', { callId })
+        io.to(to).emit('call-timeout', { callId })
+     }, 30000);
     });
 
     socket.on(
