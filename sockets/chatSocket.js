@@ -13,6 +13,7 @@ const crypto = require("crypto");
 const userSocketMap = {};
 // roomId -> Set(socketId)
 const rooms = {};
+const pendingCalls = new Map();
 
 function addUserSocket(userId, socketId) {
   if (!userSocketMap[userId]) userSocketMap[userId] = new Set();
@@ -37,6 +38,16 @@ function removeRoomSocket(roomId, socketId) {
   if (rooms[roomId].size === 0) delete rooms[roomId];
 }
 
+// dọn dẹp 1 pending call
+function clearPending(callId) {
+  const entry = pendingCalls.get(callId);
+  if (!entry) return;
+  try {
+    clearTimeout(entry.timeout);
+  } catch {}
+  pendingCalls.delete(callId);
+}
+
 function setupSocket(server) {
   const io = new Server(server, {
     cors: {
@@ -47,6 +58,11 @@ function setupSocket(server) {
   });
 
   setSocketInstance(io);
+
+  function emitToUser(userId, event, payload) {
+    const sids = getSocketsByUser(userId) || [];
+    sids.forEach((sid) => io.to(sid).emit(event, payload));
+  }
 
   io.on("connection", (socket) => {
     console.log(`[SOCKET CONNECTED] ${socket.id}`);
@@ -102,19 +118,23 @@ function setupSocket(server) {
 
     // Call flow
     socket.on("call-user", ({ to, from, callId, metadata, toData }) => {
-      if (!to) return;
-      const targets = getSocketsByUser(to);
-      io.to(from).emit("call-initiated", { to, callId, toData });
+      if (!to || !from || !callId) return;
+      emitToUser(from, "call-initiated", { to, callId, toData });
       // Notify callee sockets
-      targets.forEach((sid) => {
-        io.to(sid).emit("incoming-call", { from, callId, metadata });
-      });
+      emitToUser(to, "incoming-call", { from, callId, metadata });
 
-      // OPTIONAL: set server-side timeout to auto-reject if no response in X seconds
-      setTimeout(() => { 
-        io.to(from).emit('call-timeout', { callId })
-        io.to(to).emit('call-timeout', { callId })
-     }, 30000);
+      // Lập timeout 30s nếu chưa ai phản hồi
+      const timeout = setTimeout(() => {
+        // Nếu còn pending -> bắn timeout cho cả 2 và dọn dẹp
+        if (pendingCalls.has(callId)) {
+          emitToUser(from, "call-timeout", { callId });
+          emitToUser(to, "call-timeout", { callId });
+          clearPending(callId);
+        }
+      }, 30000);
+
+      // Lưu trạng thái chờ
+      pendingCalls.set(callId, { from, to, timeout });
     });
 
     socket.on(
@@ -125,19 +145,25 @@ function setupSocket(server) {
         callId,
         metadata,
       }) => {
-        const callers = getSocketsByUser(to);
-        // provide roomId = callId so both can join the same room
-        callers.forEach((sid) =>
-          io.to(sid).emit("call-accepted", { from, callId, metadata })
-        );
+        if (!callId) return;
+
+        const entry = pendingCalls.get(callId);
+        // Nếu có pending -> dọn dẹp timeout
+        if (entry) clearPending(callId);
+
+        // Thông báo cho caller (tất cả thiết bị)
+        emitToUser(to, "call-accepted", { from, callId, metadata });
       }
     );
 
     socket.on("reject-call", ({ to, from, callId, reason }) => {
-      const callers = getSocketsByUser(to);
-      callers.forEach((sid) =>
-        io.to(sid).emit("call-rejected", { from, callId, reason })
-      );
+      if (!callId) return;
+
+      const entry = pendingCalls.get(callId);
+      if (entry) clearPending(callId);
+
+      // Thông báo cho phía đối tác
+      emitToUser(to, "call-rejected", { from, callId, reason });
     });
 
     // ---------- Room / signaling handlers ----------
@@ -161,8 +187,6 @@ function setupSocket(server) {
     // generic signal forward (simple-peer)
     socket.on("signal", ({ roomId, data, fromUserId }) => {
       if (!roomId || !data) return;
-      // forward to other participants in the room
-      // emit event name "signal" with { data, from }
       socket.to(roomId).emit("signal", {
         data,
         from: fromUserId || socket.data.userId || null,
@@ -180,11 +204,16 @@ function setupSocket(server) {
       socket.to(roomId).emit("peer-video-toggle", { userId, videoOn });
     });
 
+    // trên server (socket.io)
+    socket.on("transcript", ({ roomId, userId, text, isFinal }) => {
+      // broadcast cho tất cả trong room (trừ sender) hoặc cho roomId
+      socket.to(roomId).emit("transcript", { roomId, userId, text, isFinal });
+    });
+
     // end call / leave room
-    socket.on("end-call", ({ roomId }) => {
+    socket.on("end-call", ({ roomId, from }) => {
       if (!roomId) return;
-      socket.to(roomId).emit("end-call", { from: socket.id });
-      // remove this socket from room map
+      socket.to(roomId).emit("end-call", { from });
       removeRoomSocket(roomId, socket.id);
       socket.leave(roomId);
     });
@@ -193,7 +222,6 @@ function setupSocket(server) {
       if (!roomId) return;
       removeRoomSocket(roomId, socket.id);
       socket.leave(roomId);
-      socket.to(roomId).emit("peer-left", { socketId: socket.id });
     });
 
     socket.on("disconnect", () => {
