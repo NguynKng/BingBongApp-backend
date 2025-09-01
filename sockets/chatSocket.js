@@ -8,6 +8,7 @@ const {
 } = require("../config/envVars");
 const { setSocketInstance } = require("./socketInstance");
 const crypto = require("crypto");
+const { translateText } = require("../controllers/translate");
 
 // userId -> Set(socketId)
 const userSocketMap = {};
@@ -204,10 +205,16 @@ function setupSocket(server) {
       socket.to(roomId).emit("peer-video-toggle", { userId, videoOn });
     });
 
-    // trên server (socket.io)
     socket.on("transcript", ({ roomId, userId, text, isFinal }) => {
       // broadcast cho tất cả trong room (trừ sender) hoặc cho roomId
       socket.to(roomId).emit("transcript", { roomId, userId, text, isFinal });
+    });
+
+    socket.on("translated", ({ roomId, userId, translation, original }) => {
+      // broadcast cho tất cả trong room (trừ sender) hoặc cho roomId
+      socket
+        .to(roomId)
+        .emit("translated", { roomId, userId, translation, original });
     });
 
     // end call / leave room
