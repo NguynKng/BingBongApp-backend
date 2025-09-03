@@ -5,7 +5,7 @@ const {
   createQuiz,
   deleteQuiz,
 } = require("../controllers/quiz");
-const { protect, optionalAuth } = require("../middleware/auth");
+const { protect } = require("../middleware/auth");
 
 const router = express.Router();
 

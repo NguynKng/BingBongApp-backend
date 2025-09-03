@@ -4,7 +4,7 @@ const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/generateToken");
 const sendVerificationEmail = require("../utils/sendEmail");
 
-const signup = async (req, res) => { 
+const signup = async (req, res) => {
   try {
     const { email, fullName, password, phoneNumber, dateOfBirth, gender } =
       req.body;
@@ -121,6 +121,7 @@ const loginUser = async (req, res) => {
         avatar: user.avatar,
         coverPhoto: user.coverPhoto,
         friends: user.friends,
+        role: user.role,
         friendRequests: user.friendRequests,
         privacy: user.privacy,
       },
@@ -130,6 +131,63 @@ const loginUser = async (req, res) => {
     return res
       .status(500)
       .json({ success: false, message: "Something went wrong." });
+  }
+};
+
+const loginAdmin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password)
+      return res
+        .status(400)
+        .json({ success: false, message: "All fields are required." });
+
+    const user = await userModel.findOne({ email });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invalid email or password." });
+    }
+
+    // Check if user is admin
+    if (user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ success: false, message: "Not authorized" });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid email or password." });
+    }
+
+    // Generate and set token
+    const token = generateToken(user._id, res);
+
+    // Return user data
+    return res.status(200).json({
+      success: true,
+      user: {
+        _id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        gender: user.gender,
+        dateOfBirth: user.dateOfBirth,
+        avatar: user.avatar,
+        role: user.role,
+        coverPhoto: user.coverPhoto,
+        friends: user.friends,
+        friendRequests: user.friendRequests,
+        privacy: user.privacy,
+      },
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -165,6 +223,7 @@ const authCheck = (req, res) => {
         gender: req.user.gender,
         dateOfBirth: req.user.dateOfBirth,
         avatar: req.user.avatar,
+        role: req.user.role,
         coverPhoto: req.user.coverPhoto,
         friends: req.user.friends,
         friendRequests: req.user.friendRequests,
@@ -215,7 +274,9 @@ const verifyCode = async (req, res) => {
     const user = await userModel.findOne({ email });
 
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
     }
 
     const resetToken = await ResetToken.findOne({
@@ -225,7 +286,9 @@ const verifyCode = async (req, res) => {
     });
 
     if (!resetToken || resetToken.expiresAt < Date.now()) {
-      return res.status(400).json({ success: false, message: "Invalid or expired code" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid or expired code" });
     }
 
     // Xác thực tài khoản
@@ -288,4 +351,13 @@ const resetPassword = async (req, res) => {
   }
 };
 
-module.exports = { signup, loginUser, logout, authCheck, forgotPassword, verifyCode, resetPassword };
+module.exports = {
+  signup,
+  loginUser,
+  loginAdmin,
+  logout,
+  authCheck,
+  forgotPassword,
+  verifyCode,
+  resetPassword
+};

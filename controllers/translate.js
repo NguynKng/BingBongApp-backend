@@ -1,4 +1,5 @@
-const { translate } = require('@vitalets/google-translate-api');
+const { translate } = require("@vitalets/google-translate-api");
+const userModel = require("../models/userModel");
 
 const translateText = async (text, to) => {
   try {
@@ -15,7 +16,10 @@ const translateText = async (text, to) => {
 const translate_text = async (req, res) => {
   try {
     const { text, to } = req.body;
-    if (!text || !to) return res.status(400).json({ error: "No text or target language specified" });
+    if (!text || !to)
+      return res
+        .status(400)
+        .json({ error: "No text or target language specified" });
 
     const translateRes = await translate(text, { to });
     const translatedText = translateRes.text;
