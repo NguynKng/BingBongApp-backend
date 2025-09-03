@@ -52,30 +52,14 @@ const protect = async (req, res, next) => {
 };
 
 // Optional auth middleware - doesn't require auth but will set user if token exists
-const optionalAuth = async (req, res, next) => {
-    try {
-        const token = req.cookies['jwt-bingbong-token'];
-
-        if (!token) {
-            return next();
-        }
-
-        // Verify token
-        const decoded = jwt.verify(token, SECRET_KEY);
-
-        // Find user by id
-        const user = await userModel.findById(decoded.userId).select('-password');
-
-        if (user) {
-            req.user = user;
-        }
-        
-        next();
-    } catch (error) {
-        // Just continue without auth if token is invalid
-        next();
-    }
+const isAdmin = (req, res, next) => {
+  if (req.user.role === "admin") {
+    next();
+  } else {
+    return res
+      .status(403)
+      .json({ success: false, message: "You are not an admin" });
+  }
 };
 
-
-module.exports = { protect, optionalAuth };
+module.exports = { protect, isAdmin };
