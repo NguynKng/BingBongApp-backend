@@ -8,7 +8,6 @@ const {
 } = require("../config/envVars");
 const { setSocketInstance } = require("./socketInstance");
 const crypto = require("crypto");
-const { translateText } = require("../controllers/translate");
 
 // userId -> Set(socketId)
 const userSocketMap = {};

@@ -1,9 +1,10 @@
 const router = require('express').Router();
-const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest } = require('../controllers/user');
-const { protect } = require('../middleware/auth');
+const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers } = require('../controllers/user');
+const { protect, isAdmin } = require('../middleware/auth');
 const { uploadAvatarMiddleware, uploadCoverPhotoMiddleware } = require('../middleware/upload');
 
 // Set profile picture (avatar)
+router.get('/get-all', protect, isAdmin, getAllUsers);
 router.post('/avatar', protect, uploadAvatarMiddleware, setAvatar);
 
 // Set cover photo
@@ -31,10 +32,4 @@ router.delete("/friend-request/decline/:userId", protect, declineFriendRequest);
 // Hủy kết bạn
 router.delete("/friend/:userId", protect, removeFriend);
 
-router.get("/me", protect, (req, res) => {
-  console.log("✅ Người dùng xác thực thành công:", req.user);
-  res.json(req.user);
-});
-
-  
 module.exports = router;

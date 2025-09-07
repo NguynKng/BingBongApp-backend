@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  avatar: { type: String, default: "" }, // URL ảnh đại diện
+  avatar: { type: String, default: "/images/default-avatar/user.png" }, // URL ảnh đại diện
   coverPhoto: { type: String, default: "" }, // Ảnh bìa
 
   // Thông tin cá nhân
@@ -25,7 +25,7 @@ const UserSchema = new mongoose.Schema({
   friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   friendRequests: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }], // Lời mời kết bạn
   isVerified: { type: Boolean, default: false }, // Trạng thái xác thực email
-
+  block: { type: Boolean, default: false }, // Trạng thái bị khóa tài khoản
   // Cài đặt quyền riêng tư
   privacy: {
     profileVisibility: {

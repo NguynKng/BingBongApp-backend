@@ -12,5 +12,6 @@ router.use("/notifications", require('./notification'))
 router.use("/crawlblog", require('./blog'))
 router.use("/badges", require("./badge"))
 router.use("/translate", require("./translate"))
+router.use("/stats", require("./stats"))
 
 module.exports = router
