@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers } = require('../controllers/user');
+const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions } = require('../controllers/user');
 const { protect, isAdmin } = require('../middleware/auth');
 const { uploadAvatarMiddleware, uploadCoverPhotoMiddleware } = require('../middleware/upload');
 
@@ -31,5 +31,7 @@ router.delete("/friend-request/decline/:userId", protect, declineFriendRequest);
 
 // Hủy kết bạn
 router.delete("/friend/:userId", protect, removeFriend);
+
+router.get('/suggestions', protect, getFriendSuggestions);
 
 module.exports = router;

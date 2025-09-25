@@ -365,14 +365,49 @@ const getAllUsers = async (req, res) => {
       .select(
         "_id email avatar fullName createdAt isVerified block role gender phoneNumber"
       );
-    return res
-      .status(200)
-      .json({ success: true, data: users });
+    return res.status(200).json({ success: true, data: users });
   } catch (error) {
     console.error("Get all users error:", error);
     return res
       .status(500)
       .json({ success: false, message: "Something went wrong" });
+  }
+};
+
+const getFriendSuggestions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const currentUser = await userModel.findById(userId).populate("friends");
+
+    const excludeIds = [
+      userId,
+      ...currentUser.friends,
+      ...currentUser.friendRequests,
+    ];
+
+    let suggestions = await userModel.find({
+      _id: { $nin: excludeIds },
+      block: false,
+    })
+      .select("fullName avatar friends")
+      .limit(10);
+
+    suggestions = suggestions.map((user) => {
+      const mutualFriends = user.friends.filter((f) =>
+        currentUser.friends.map((id) => id.toString()).includes(f.toString())
+      );
+      return {
+        ...user.toObject(),
+        mutualFriendsCount: mutualFriends.length,
+      };
+    });
+
+    return res.status(200).json({ success: true, data: suggestions });
+  } catch (error) {
+    console.error("Error fetching suggestions:", error.message);
+    return res
+      .status(500)
+      .json({ success: false, message: "Internal server error" });
   }
 };
 
@@ -387,4 +422,5 @@ module.exports = {
   removeFriend,
   declineFriendRequest,
   getAllUsers,
+  getFriendSuggestions,
 };
