@@ -10,24 +10,8 @@ const getTrendingMovie = async (req, res) => {
     const shuffled = data.results.sort(() => 0.5 - Math.random());
 
     // Lấy 5 phim đầu tiên
-    const randomFive = shuffled.slice(0, 5);
+    const randomFive = shuffled.slice(0, 20);
     return res.status(200).json({ content: randomFive, success: true });
-  } catch (error) {
-    console.error("Error fetching trending movies:", error.message);
-    return res
-      .status(500)
-      .json({ message: "Internal server error", success: false });
-  }
-};
-
-const getA = async (req, res) => {
-  try {
-    const data = await fetchFromTMDB(
-      `https://api.themoviedb.org/3/trending/movie/day?language=en-US`
-    );
-    const randomMovie =
-      data.results[Math.floor(Math.random() * data.results?.length)];
-    return res.status(200).json({ content: randomMovie, success: true });
   } catch (error) {
     console.error("Error fetching trending movies:", error.message);
     return res
@@ -117,9 +101,12 @@ const getTrendingTVShow = async (req, res) => {
     const data = await fetchFromTMDB(
       "https://api.themoviedb.org/3/trending/tv/day?language=en-US"
     );
-    const randomMovie =
-      data.results[Math.floor(Math.random() * data.results?.length)];
-    return res.status(200).json({ content: randomMovie, success: true });
+    // Shuffle mảng
+    const shuffled = data.results.sort(() => 0.5 - Math.random());
+
+    // Lấy 5 phim đầu tiên
+    const randomFive = shuffled.slice(0, 20);
+    return res.status(200).json({ content: randomFive, success: true });
   } catch (error) {
     console.error("Error fetching trending movies:", error.message);
     return res

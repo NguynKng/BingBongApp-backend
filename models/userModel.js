@@ -4,7 +4,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   avatar: { type: String, default: "/images/default-avatar/user.png" }, // URL ảnh đại diện
-  coverPhoto: { type: String, default: "" }, // Ảnh bìa
+  coverPhoto: { type: String, default: "/images/default-avatar/background-gray.avif" }, // Ảnh bìa
 
   // Thông tin cá nhân
   fullName: { type: String, required: true },

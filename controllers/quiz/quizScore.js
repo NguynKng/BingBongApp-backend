@@ -1,5 +1,4 @@
 const QuizScore = require("../../models/quiz/quizScoreModel");
-const UserScore = require("../../models/quiz/userScoreModel");
 
 // Ghi nhận điểm của người dùng cho một quiz
 const updateQuizScore = async (req, res) => {
@@ -8,7 +7,9 @@ const updateQuizScore = async (req, res) => {
     const userId = req.user._id;
 
     if (!quizId || typeof score !== "number" || score < 0) {
-      return res.status(400).json({ success: false, message: "Dữ liệu không hợp lệ" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Dữ liệu không hợp lệ" });
     }
 
     let quizScore = await QuizScore.findOne({ user: userId, quiz: quizId });
@@ -26,18 +27,10 @@ const updateQuizScore = async (req, res) => {
 
     await quizScore.save();
 
-    // Cập nhật tổng điểm người dùng
-    let userScore = await UserScore.findOne({ user: userId });
-    if (!userScore) {
-      userScore = new UserScore({ user: userId, totalScore: score });
-    } else {
-      userScore.totalScore += scoreDiff;
-      if (userScore.totalScore < 0) userScore.totalScore = 0;
-    }
-    await userScore.save();
-
     // Cập nhật bảng xếp hạng quiz
-    const allScores = await QuizScore.find({ quiz: quizId }).sort({ score: -1 });
+    const allScores = await QuizScore.find({ quiz: quizId }).sort({
+      score: -1,
+    });
     for (let i = 0; i < allScores.length; i++) {
       allScores[i].rank = i + 1;
       await allScores[i].save();
@@ -105,8 +98,51 @@ const getQuizLeaderboard = async (req, res) => {
   }
 };
 
+const getLeaderboard = async (req, res) => {
+  try {
+    const leaderboard = await QuizScore.aggregate([
+      {
+        $group: {
+          _id: "$user",
+          totalScore: { $sum: "$score" },
+          lastPlayed: { $max: "$updatedAt" },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          _id: 0,
+          user: {
+            _id: "$user._id",
+            fullName: "$user.fullName",
+            avatar: "$user.avatar",
+          },
+          totalScore: 1,
+          lastPlayed: 1,
+        },
+      },
+      { $sort: { totalScore: -1, lastPlayed: 1 } },
+      { $limit: 20 },
+    ]);
+
+    res.json({ success: true, leaderboard });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   updateQuizScore,
   getQuizScore,
   getQuizLeaderboard,
+  getLeaderboard,
 };
