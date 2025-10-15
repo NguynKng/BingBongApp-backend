@@ -13,5 +13,6 @@ router.use("/translate", require("./translate"))
 router.use("/stats", require("./stats"))
 router.use("/tmdb", require("./tmdb"))
 router.use("/shop", require("./shop"))
+router.use("/product", require("./product"))
 
 module.exports = router

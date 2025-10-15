@@ -13,7 +13,7 @@ const setAvatar = async (req, res) => {
 
     const userId = req.user._id;
     const fileName = req.file.filename;
-    const avatarPath = `/uploads/user/${userId}/avatar/${fileName}`;
+    const avatarPath = `/uploads/avatar/${fileName}`;
 
     // Update user avatar in database
     const updatedUser = await userModel
@@ -50,7 +50,7 @@ const setCoverPhoto = async (req, res) => {
 
     const userId = req.user._id;
     const fileName = req.file.filename;
-    const coverPhotoPath = `/uploads/user/${userId}/cover_photo/${fileName}`;
+    const coverPhotoPath = `/uploads/cover_photo/${fileName}`;
 
     // Update user cover photo in database
     const updatedUser = await userModel

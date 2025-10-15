@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const OrderSchema = new mongoose.Schema(
   {
+    shop: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Shop",
+      required: true,
+    },
     products: [
       {
         product: {
@@ -57,4 +62,4 @@ const OrderSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('Order', OrderSchema);
+module.exports = mongoose.model("Order", OrderSchema);

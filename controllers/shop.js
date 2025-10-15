@@ -16,10 +16,14 @@ const createSampleShop = async (req, res) => {
         email: "shop.local@example.com",
         website: "https://localbrand.vn",
       },
-      categories: ["Thời trang", "Áo thun"],
-      productTypes: ["Quần áo", "Phụ kiện"],
-      avatar: "https://example.com/images/shop-avatar.png",
-      cover: "https://example.com/images/shop-cover.png",
+      categories: [
+        {
+          name: "Laptop",
+        },
+        {
+          name: "Điện thoại",
+        },
+      ],
     };
 
     // Tạo shop mới
@@ -44,8 +48,10 @@ const getShopBySlug = async (req, res) => {
     const { slug } = req.params;
 
     // Tìm shop theo slug (chỉ lấy 1 shop duy nhất)
-    const shop = await Shop.findOne({ slug })
-      .populate("owner", "fullName avatar email") // lấy thông tin chủ shop
+    const shop = await Shop.findOne({ slug }).populate(
+      "owner",
+      "fullName avatar email"
+    ); // lấy thông tin chủ shop
 
     if (!shop) {
       return res.status(404).json({

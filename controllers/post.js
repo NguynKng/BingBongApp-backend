@@ -57,7 +57,7 @@ const createPost = async (req, res) => {
         // Move the file
         if (fs.existsSync(tempPath)) {
           // Add the path to our array
-          mediaPaths.push(`/uploads/user/${author}/posts/${fileName}`);
+          mediaPaths.push(`/uploads/posts/${fileName}`);
         }
       }
     }
