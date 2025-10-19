@@ -38,6 +38,11 @@ const ProductSchema = new mongoose.Schema(
     ],
     images: [String],
     brand: { type: String, default: "" },
+    status: {
+      type: String,
+      enum: ["active", "inactive", "deleted"],
+      default: "active",
+    },
   },
   { timestamps: true }
 );

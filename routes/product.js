@@ -4,8 +4,8 @@ const { createProduct, getProductsByShop, getProductBySlug, getProductById, upda
 const { uploadProductImagesMiddleware } = require('../middleware/upload');
 
 router.post("/add", protect, uploadProductImagesMiddleware, createProduct)
-router.get("/shop/:shopId", protect, getProductsByShop)
-router.get("/slug/:slug", protect, getProductBySlug)
+router.get("/shop/:shopId", getProductsByShop)
+router.get("/slug/:slug/:shopId", protect, getProductBySlug)
 router.get("/id/:id", protect, getProductById)
 router.put("/id/:id", protect, uploadProductImagesMiddleware, updateProductById)
 

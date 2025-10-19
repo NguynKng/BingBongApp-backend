@@ -39,7 +39,7 @@ const ShopSchema = new mongoose.Schema(
       },
     ],
     avatar: { type: String, default: "/images/default-avatar/user.png" },
-    cover: {
+    coverPhoto: {
       type: String,
       default: "/images/default-avatar/background-gray.avif",
     },

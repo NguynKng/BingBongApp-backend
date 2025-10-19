@@ -1,77 +1,92 @@
 const postModel = require("../models/postModel");
-const commentModel = require("../models/commentModel"); // Add this import for the Comment model
+const commentModel = require("../models/commentModel");
 const fs = require("fs");
 const path = require("path");
+const FormData = require("form-data");
+const axios = require("axios");
 const {
   createAndSendNotificationForFriend,
   sendNotificationToUser,
 } = require("./notification");
-const FormData = require("form-data");
-const axios = require("axios");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 
-// Create a new post (with optional images)
+//
+// 🧩 Tạo bài viết mới
+//
 const createPost = async (req, res) => {
   try {
-    const { content } = req.body;
-    const author = req.user._id;
+    const { content, postedByType, postedById } = req.body;
+    const author = req.user._id; // ✅ Lấy user đăng nhập làm tác giả
 
-    if (!content) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Hãy thêm nội dung cho bài đăng." });
+    // ✅ Kiểm tra đầu vào
+    if (!content || !postedByType || !postedById) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin bắt buộc: content, postedByType, postedById.",
+      });
     }
 
+    // ✅ Kiểm tra loại hợp lệ
+    const validTypes = ["User", "Shop", "Group"];
+    if (!validTypes.includes(postedByType)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Loại bài đăng không hợp lệ." });
+    }
+
+    // ✅ Gửi sang Flask AI kiểm duyệt (nếu có)
     const formData = new FormData();
     formData.append("content", content);
-    if (req.files) {
-      for (const file of req.files) {
-        const fileStream = fs.createReadStream(file.path); // 🔥 Đọc từ file đã lưu
 
-        formData.append("images", fileStream, {
+    if (req.files?.length) {
+      for (const file of req.files) {
+        const stream = fs.createReadStream(file.path);
+        formData.append("images", stream, {
           filename: file.originalname,
           contentType: file.mimetype,
         });
       }
     }
 
-    const flaskResponse = await axios.post(
-      `${BACKEND_AI_PYTHON_URL}/analyze-post`,
-      formData,
-      {
-        headers: formData.getHeaders(),
-      }
-    );
-    if (flaskResponse.data.isPostSafeForChild == false) {
-      return res.status(400).json({
-        success: false,
-        message: "Bài viết có nội dung bạo lực không thể đăng.",
-      });
-    }
-    const mediaPaths = [];
+    // const flaskResponse = await axios.post(
+    //   `${BACKEND_AI_PYTHON_URL}/analyze-post`,
+    //   formData,
+    //   { headers: formData.getHeaders() }
+    // );
 
-    if (req.files && req.files.length > 0) {
+    // if (flaskResponse.data.isPostSafeForChild === false) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Bài viết chứa nội dung không phù hợp, không thể đăng.",
+    //   });
+    // }
+
+    // ✅ Xử lý media paths
+    const mediaPaths = [];
+    if (req.files?.length) {
       for (const file of req.files) {
-        const tempPath = file.path;
-        const fileName = path.basename(tempPath);
-        // Move the file
-        if (fs.existsSync(tempPath)) {
-          // Add the path to our array
-          mediaPaths.push(`/uploads/posts/${fileName}`);
-        }
+        const fileName = path.basename(file.path);
+        mediaPaths.push(`/uploads/posts/${fileName}`);
       }
     }
+
+    // ✅ Tạo bài viết mới
     const newPost = await postModel.create({
       author,
+      postedByType,
+      postedById,
       content,
       media: mediaPaths,
     });
 
+    // ✅ Populate bài đăng sau khi tạo
     const populatedPost = await postModel
       .findById(newPost._id)
-      .populate("author", "fullName avatar");
+      .populate("author", "fullName avatar")
+      .populate("postedById", "fullName name avatar coverPhoto");
 
-    if (populatedPost) {
+    // ✅ Gửi thông báo cho bạn bè nếu là bài của User
+    if (postedByType === "User") {
       await createAndSendNotificationForFriend(
         author,
         "new_post",
@@ -81,48 +96,39 @@ const createPost = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Đăng bài thành công",
+      message: "Đăng bài thành công.",
       post: populatedPost,
     });
   } catch (error) {
-    console.error("Create post error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    console.error("❌ Create post error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Đã xảy ra lỗi khi đăng bài.",
+    });
   }
 };
 
-// Get all posts (with pagination)
+//
+// 📜 Lấy danh sách bài viết (có phân trang)
+//
 const getPosts = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
 
-    // Get posts sorted by creation date (newest first)
     const posts = await postModel
       .find()
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .populate("author", "fullName avatar")
-      .populate({
-        path: "comments",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
-        options: { sort: { createdAt: -1 }, limit: 5 },
-      })
+      .populate("postedById", "fullName name slug avatar coverPhoto")
       .populate({
         path: "reactions",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
+        populate: { path: "user", select: "fullName avatar" },
       });
 
-    // Get total count for pagination
     const total = await postModel.countDocuments();
 
     return res.status(200).json({
@@ -136,333 +142,197 @@ const getPosts = async (req, res) => {
     });
   } catch (error) {
     console.error("Get posts error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tải danh sách bài viết.",
+    });
   }
 };
 
-// Get posts by specific user
-const getPostsByUser = async (req, res) => {
+//
+// 👤 Lấy bài viết theo chủ thể (User / Shop / Group)
+//
+const getPostsByOwner = async (req, res) => {
   try {
-    const userId = req.params.userId;
+    const { type, id } = req.params;
 
-    // Get posts by this user sorted by creation date (newest first)
     const posts = await postModel
-      .find({ author: userId })
+      .find({ postedByType: type, postedById: id })
       .sort({ createdAt: -1 })
       .populate("author", "fullName avatar")
-      .populate({
-        path: "comments",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
-        options: { sort: { createdAt: -1 } },
-      })
+      .populate("postedById", "fullName name slug avatar coverPhoto")
       .populate({
         path: "reactions",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
+        populate: { path: "user", select: "fullName avatar" },
       });
 
-    return res.status(200).json({
-      success: true,
-      posts,
-    });
+    if (!posts) {
+      return res
+        .status(404)
+        .json({ success: false, message: "No posts found." });
+    }
+
+    return res.status(200).json({ success: true, posts });
   } catch (error) {
-    console.error("Get posts by user error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    console.error("Get posts by owner error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tải bài viết.",
+    });
   }
 };
 
-// Get a specific post by ID
+//
+// 📄 Lấy 1 bài viết cụ thể
+//
 const getPostById = async (req, res) => {
   try {
-    const postId = req.params.postId;
-
+    const { postId } = req.params;
     const post = await postModel
       .findById(postId)
       .populate("author", "fullName avatar")
+      .populate("postedById", "fullName name avatar coverPhoto")
       .populate({
         path: "comments",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
+        populate: { path: "user", select: "fullName avatar" },
         options: { sort: { createdAt: -1 } },
-      })
-      .populate({
-        path: "reactions",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
       });
 
-    if (!post) {
+    if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
+        .json({ success: false, message: "Bài viết không tồn tại." });
 
-    return res.status(200).json({
-      success: true,
-      post,
-    });
+    return res.status(200).json({ success: true, post });
   } catch (error) {
     console.error("Get post error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tải bài viết.",
+    });
   }
 };
 
-// Update post content or caption
+//
+// ✏️ Cập nhật bài viết
+//
 const updatePost = async (req, res) => {
   try {
-    const postId = req.params.postId;
+    const { postId } = req.params;
+    const { content } = req.body;
     const userId = req.user._id;
-    const { content, caption } = req.body;
 
-    // Check if post exists and belongs to the user
     const post = await postModel.findById(postId);
-
-    if (!post) {
+    if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
+        .json({ success: false, message: "Không tìm thấy bài viết." });
 
     if (post.author.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to update this post",
+        message: "Bạn không có quyền chỉnh sửa bài viết này.",
       });
     }
 
-    // Update fields if provided
-    if (content !== undefined) {
-      post.content = content;
-    }
-
-    if (caption !== undefined) {
-      post.caption = caption;
-    }
-
+    post.content = content || post.content;
     post.updatedAt = Date.now();
     await post.save();
 
     return res.status(200).json({
       success: true,
-      message: "Post updated successfully",
+      message: "Cập nhật bài viết thành công.",
       post,
     });
   } catch (error) {
     console.error("Update post error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể cập nhật bài viết.",
+    });
   }
 };
 
-// Delete a post
+//
+// 🗑️ Xoá bài viết
+//
 const deletePost = async (req, res) => {
   try {
-    const postId = req.params.postId;
+    const { postId } = req.params;
     const userId = req.user._id;
 
-    // Check if post exists and belongs to the user
     const post = await postModel.findById(postId);
-
-    if (!post) {
+    if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
+        .json({ success: false, message: "Bài viết không tồn tại." });
 
     if (post.author.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to delete this post",
+        message: "Bạn không có quyền xóa bài viết này.",
       });
     }
 
-    // Delete post media files
-    if (post.media && post.media.length > 0) {
-      post.media.forEach((mediaPath) => {
+    // Xoá ảnh khỏi server
+    if (post.media?.length) {
+      for (const mediaPath of post.media) {
         const fullPath = path.join(__dirname, "..", "public", mediaPath);
-        if (fs.existsSync(fullPath)) {
-          fs.unlinkSync(fullPath);
-        }
-      });
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+      }
     }
 
-    // Delete post from database
-    const deletedPost = await postModel.findByIdAndDelete(postId);
+    await postModel.findByIdAndDelete(postId);
 
     return res.status(200).json({
       success: true,
-      message: "Post deleted successfully",
-      data: deletedPost,
+      message: "Đã xoá bài viết thành công.",
     });
   } catch (error) {
     console.error("Delete post error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
-  }
-};
-
-// Delete a specific image from a post
-const deletePostImage = async (req, res) => {
-  try {
-    const { postId, imageIndex } = req.params;
-    const userId = req.user._id;
-
-    // Check if post exists and belongs to the user
-    const post = await postModel.findById(postId);
-
-    if (!post) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
-
-    if (post.author.toString() !== userId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to modify this post",
-      });
-    }
-
-    // Check if the image index is valid
-    if (!post.media || imageIndex >= post.media.length) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Invalid image index" });
-    }
-
-    // Get the path of the image to delete
-    const imagePath = post.media[imageIndex];
-    const fullImagePath = path.join(__dirname, "..", "public", imagePath);
-
-    // Remove the image file if it exists
-    if (fs.existsSync(fullImagePath)) {
-      fs.unlinkSync(fullImagePath);
-    }
-
-    // Remove the image path from the media array
-    post.media.splice(imageIndex, 1);
-    await post.save();
-
-    return res.status(200).json({
-      success: true,
-      message: "Image deleted successfully",
-      post,
+    return res.status(500).json({
+      success: false,
+      message: "Không thể xoá bài viết.",
     });
-  } catch (error) {
-    console.error("Delete post image error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
   }
 };
 
-// Get feed for the current user (all posts, prioritizing friends)
-const getFeed = async (req, res) => {
-  try {
-    const userId = req.user._id;
-
-    // Get the current user to check friends (for future ranking)
-    const currentUser = await require("../models/userModel").findById(userId);
-
-    if (!currentUser) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
-
-    // Get all posts, sorted by creation date (newest first)
-    // Future enhancement: Could prioritize friends' posts in a more sophisticated feed algorithm
-    const posts = await postModel
-      .find()
-      .sort({ createdAt: -1 })
-      .populate("author", "fullName avatar")
-      .populate({
-        path: "comments",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
-        options: { sort: { createdAt: -1 } },
-      })
-      .populate({
-        path: "reactions",
-        populate: {
-          path: "user",
-          select: "fullName avatar",
-        },
-      });
-
-    return res.status(200).json({
-      success: true,
-      posts,
-    });
-  } catch (error) {
-    console.error("Get feed error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
-  }
-};
-
-// Add a comment to a post
+//
+// 💬 Thêm bình luận
+//
 const addComment = async (req, res) => {
   try {
     const { postId } = req.params;
     const { content } = req.body;
     const userId = req.user._id;
 
-    // Validate input
-    if (!content || content.trim() === "") {
+    if (!content?.trim()) {
       return res
         .status(400)
-        .json({ success: false, message: "Comment content is required" });
+        .json({ success: false, message: "Nội dung bình luận trống." });
     }
 
-    // Check if post exists
     const post = await postModel.findById(postId);
-    if (!post) {
+    if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
+        .json({ success: false, message: "Bài viết không tồn tại." });
 
-    // Create new comment
-    const newComment = new commentModel({
+    const newComment = await commentModel.create({
       post: postId,
       user: userId,
       content,
-      parent: null, // This is a direct comment on a post
     });
 
-    post.comments.push(newComment._id); // Add comment ID to the post's comments array
+    post.comments.push(newComment._id);
+    await post.save();
 
-    await newComment.save();
-    await post.save(); // Save the post to update its comments array
-
-    // Populate user info in the comment
     const populatedComment = await commentModel
       .findById(newComment._id)
       .populate("user", "fullName avatar");
 
-    if (post.author.toString() != userId.toString()) {
-      // Create notification for the post author
+    // 🔔 Gửi thông báo cho chủ bài viết
+    if (post.author.toString() !== userId.toString()) {
       await sendNotificationToUser(
         post.author.toString(),
         userId,
@@ -473,105 +343,100 @@ const addComment = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Comment added successfully",
+      message: "Đã thêm bình luận.",
       comment: populatedComment,
     });
   } catch (error) {
     console.error("Add comment error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể bình luận.",
+    });
   }
 };
 
-// Add a reply to a comment
+//
+// 💬 Thêm phản hồi (reply)
+//
 const addReply = async (req, res) => {
   try {
     const { commentId } = req.params;
     const { content } = req.body;
     const userId = req.user._id;
 
-    // Validate input
-    if (!content || content.trim() === "") {
+    if (!content?.trim()) {
       return res
         .status(400)
-        .json({ success: false, message: "Reply content is required" });
+        .json({ success: false, message: "Nội dung phản hồi trống." });
     }
 
-    // Check if the parent comment exists
     const parentComment = await commentModel.findById(commentId);
-    if (!parentComment) {
+    if (!parentComment)
       return res
         .status(404)
-        .json({ success: false, message: "Parent comment not found" });
-    }
+        .json({ success: false, message: "Không tìm thấy bình luận cha." });
 
-    // Create new reply
-    const newReply = new commentModel({
-      post: parentComment.post, // Use the same post ID as the parent comment
+    const newReply = await commentModel.create({
+      post: parentComment.post,
       user: userId,
       content,
       parent: commentId,
     });
 
-    await newReply.save();
+    const post = await postModel.findById(parentComment.post);
+    post.comments.push(newReply._id);
+    await post.save();
 
-    // Populate user info in the reply
     const populatedReply = await commentModel
       .findById(newReply._id)
       .populate("user", "fullName avatar");
 
     return res.status(201).json({
       success: true,
-      message: "Reply added successfully",
+      message: "Đã thêm phản hồi.",
       comment: populatedReply,
     });
   } catch (error) {
     console.error("Add reply error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể phản hồi.",
+    });
   }
 };
 
-// Get all comments for a specific post (including replies)
+//
+// 📚 Lấy toàn bộ comment + reply của post
+//
 const getCommentsByPost = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // Kiểm tra post tồn tại
     const post = await postModel.findById(postId);
-    if (!post) {
+    if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Post not found" });
-    }
+        .json({ success: false, message: "Bài viết không tồn tại." });
 
-    // Lấy tất cả comment gốc (parent: null) và populate replies
     const comments = await commentModel
       .find({ post: postId, parent: null })
-      .sort({ createdAt: -1 }) // mới nhất lên trước
+      .sort({ createdAt: -1 })
       .populate("user", "fullName avatar")
-      .lean(); // sử dụng lean() để dễ dàng gán thêm trường replies
+      .lean();
 
-    // Lấy tất cả replies của bài post
     const replies = await commentModel
       .find({ post: postId, parent: { $ne: null } })
       .populate("user", "fullName avatar")
       .lean();
 
-    // Gán replies vào từng comment chính
     const commentMap = {};
-    comments.forEach((comment) => {
-      comment.replies = [];
-      commentMap[comment._id.toString()] = comment;
+    comments.forEach((c) => {
+      c.replies = [];
+      commentMap[c._id.toString()] = c;
     });
-
-    replies.forEach((reply) => {
-      const parentId = reply.parent.toString();
-      if (commentMap[parentId]) {
-        commentMap[parentId].replies.push(reply);
-      }
+    replies.forEach((r) => {
+      const pid = r.parent?.toString();
+      if (commentMap[pid]) commentMap[pid].replies.push(r);
     });
 
     return res.status(200).json({
@@ -580,21 +445,20 @@ const getCommentsByPost = async (req, res) => {
     });
   } catch (error) {
     console.error("Get comments error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Something went wrong" });
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tải bình luận.",
+    });
   }
 };
 
 module.exports = {
   createPost,
   getPosts,
+  getPostsByOwner,
   getPostById,
-  getPostsByUser,
-  getFeed,
   updatePost,
   deletePost,
-  deletePostImage,
   addComment,
   addReply,
   getCommentsByPost,

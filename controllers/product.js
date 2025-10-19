@@ -19,6 +19,7 @@ const createProduct = async (req, res) => {
       brand,
       variants,
       shop,
+      status,
     } = req.body;
 
     // 1️⃣ Kiểm tra các trường bắt buộc
@@ -137,6 +138,7 @@ const createProduct = async (req, res) => {
       brand,
       images: mainImagePaths,
       variants: updatedVariants,
+      status,
     });
 
     await newProduct.save();
@@ -167,6 +169,7 @@ const updateProductById = async (req, res) => {
       discount,
       brand,
       shop,
+      status,
       variants,
       deletedImagePath, // client gửi danh sách ảnh đã xoá
     } = req.body;
@@ -315,6 +318,7 @@ const updateProductById = async (req, res) => {
     product.brand = brand ?? product.brand;
     product.images = finalMainImages;
     product.variants = updatedVariants;
+    product.status = status ?? product.status;
 
     await product.save();
 
@@ -334,9 +338,9 @@ const updateProductById = async (req, res) => {
 };
 
 const getProductBySlug = async (req, res) => {
-  const { slug } = req.params;
+  const { slug, shopId } = req.params;
   try {
-    const product = await Product.findOne({ slug });
+    const product = await Product.findOne({ slug, shop: shopId });
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -383,10 +387,64 @@ const getProductById = async (req, res) => {
 
 const getProductsByShop = async (req, res) => {
   const { shopId } = req.params;
+  const { minPrice, maxPrice, category, isDiscounted, name } = req.query;
+
   try {
-    const products = await Product.find({ shop: shopId });
+    const filter = { shop: shopId };
+
+    if (name) {
+      filter.name = { $regex: name, $options: "i" };
+    }
+
+    // 🏷️ Nếu có truyền category (slug)
+    if (category) {
+      const shop = await Shop.findById(shopId);
+      if (!shop) {
+        return res.status(404).json({
+          success: false,
+          message: "Không tìm thấy cửa hàng.",
+        });
+      }
+
+      const matchedCategory = shop.categories.find(
+        (cat) => cat.slug === category
+      );
+
+      if (!matchedCategory) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+          message: "Danh mục không tồn tại trong shop này.",
+        });
+      }
+
+      filter.category = matchedCategory.name;
+    }
+
+    // 💸 3. Lọc theo sản phẩm có khuyến mãi
+    if (isDiscounted === "true") {
+      filter.discount = { $gt: 0 };
+    }
+
+    // 🧾 4. Truy vấn dữ liệu gốc
+    let products = await Product.find(filter).sort({ createdAt: -1 });
+
+    // 🪙 5. Lọc lại theo giá thực tế (đã trừ discount)
+    if (minPrice || maxPrice) {
+      const min = Number(minPrice) || 0;
+      const max = Number(maxPrice) || Infinity;
+
+      products = products.filter((p) => {
+        const priceAfterDiscount =
+          p.basePrice - (p.basePrice * p.discount) / 100;
+        return priceAfterDiscount >= min && priceAfterDiscount <= max;
+      });
+    }
+
     res.status(200).json({
       success: true,
+      count: products.length,
       data: products,
     });
   } catch (error) {

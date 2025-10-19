@@ -1,35 +1,85 @@
 const userModel = require("../models/userModel");
-const { removeDiacritics } = require("../helper/helper");
+const shopModel = require("../models/shopModel");
+const groupModel = require("../models/groupModel");
+const { removeDiacritics, deleteOldFile } = require("../helper/helper");
 const { sendNotificationToUser } = require("../controllers/notification");
 
-// Set avatar for user
 const setAvatar = async (req, res) => {
+  const { type, id } = req.body; // type: "user" | "shop" | "group"
   try {
-    if (!req.file) {
+    if (!req.file)
       return res
         .status(400)
         .json({ success: false, message: "No file uploaded" });
-    }
 
-    const userId = req.user._id;
     const fileName = req.file.filename;
     const avatarPath = `/uploads/avatar/${fileName}`;
+    const isDefaultAvatar = (path) => {
+      return path === "/images/default-avatar/user.png";
+    };
 
-    // Update user avatar in database
-    const updatedUser = await userModel
-      .findByIdAndUpdate(userId, { avatar: avatarPath }, { new: true })
-      .select("-password");
+    let oldAvatar;
 
-    if (!updatedUser) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+    switch (type) {
+      case "User":
+        const user = await userModel.findById(req.user._id);
+        if (!user)
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        oldAvatar = user.avatar;
+        await userModel
+          .findByIdAndUpdate(
+            req.user._id,
+            { avatar: avatarPath },
+            { new: true }
+          )
+          .select("-password");
+        break;
+
+      case "Shop":
+        const shop = await shopModel.findById(id);
+        if (!shop)
+          return res
+            .status(404)
+            .json({ success: false, message: "Shop not found" });
+        oldAvatar = shop.avatar;
+        await shopModel.findByIdAndUpdate(
+          id,
+          { avatar: avatarPath },
+          { new: true }
+        );
+        break;
+
+      case "Group":
+        const group = await groupModel.findById(id);
+        if (!group)
+          return res
+            .status(404)
+            .json({ success: false, message: "Group not found" });
+        oldAvatar = group.avatar;
+        await groupModel.findByIdAndUpdate(
+          id,
+          { avatar: avatarPath },
+          { new: true }
+        );
+        break;
+
+      default:
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid type" });
+    }
+
+    // ✅ Xóa ảnh cũ nếu không phải ảnh mặc định
+    if (!isDefaultAvatar(oldAvatar)) {
+      deleteOldFile(oldAvatar);
     }
 
     return res.status(200).json({
       success: true,
-      message: "Avatar updated successfully",
-      user: updatedUser,
+      message: `${type} avatar updated successfully`,
+      data: avatarPath,
     });
   } catch (error) {
     console.error("Set avatar error:", error);
@@ -39,34 +89,83 @@ const setAvatar = async (req, res) => {
   }
 };
 
-// Set cover photo for user
+// ✅ Set Cover Photo
 const setCoverPhoto = async (req, res) => {
+  const { type, id } = req.body;
   try {
-    if (!req.file) {
+    if (!req.file)
       return res
         .status(400)
         .json({ success: false, message: "No file uploaded" });
-    }
 
-    const userId = req.user._id;
     const fileName = req.file.filename;
     const coverPhotoPath = `/uploads/cover_photo/${fileName}`;
+    const isDefaultCoverPhoto = (path) => {
+      return path === "/images/default-avatar/background-gray.avif";
+    };
 
-    // Update user cover photo in database
-    const updatedUser = await userModel
-      .findByIdAndUpdate(userId, { coverPhoto: coverPhotoPath }, { new: true })
-      .select("-password");
+    let oldCover;
 
-    if (!updatedUser) {
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
+    switch (type) {
+      case "User":
+        const user = await userModel.findById(req.user._id);
+        if (!user)
+          return res
+            .status(404)
+            .json({ success: false, message: "User not found" });
+        oldCover = user.coverPhoto;
+        await userModel
+          .findByIdAndUpdate(
+            req.user._id,
+            { coverPhoto: coverPhotoPath },
+            { new: true }
+          )
+          .select("-password");
+        break;
+
+      case "Shop":
+        const shop = await shopModel.findById(id);
+        if (!shop)
+          return res
+            .status(404)
+            .json({ success: false, message: "Shop not found" });
+        oldCover = shop.coverPhoto;
+        await shopModel.findByIdAndUpdate(
+          id,
+          { coverPhoto: coverPhotoPath },
+          { new: true }
+        );
+        break;
+
+      case "Group":
+        const group = await groupModel.findById(id);
+        if (!group)
+          return res
+            .status(404)
+            .json({ success: false, message: "Group not found" });
+        oldCover = group.coverPhoto;
+        await groupModel.findByIdAndUpdate(
+          id,
+          { coverPhoto: coverPhotoPath },
+          { new: true }
+        );
+        break;
+
+      default:
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid type" });
+    }
+
+    // ✅ Xóa ảnh cũ nếu không phải mặc định
+    if (!isDefaultCoverPhoto(oldCover)) {
+      deleteOldFile(oldCover);
     }
 
     return res.status(200).json({
       success: true,
-      message: "Cover photo updated successfully",
-      user: updatedUser,
+      message: `${type} cover photo updated successfully`,
+      data: coverPhotoPath,
     });
   } catch (error) {
     console.error("Set cover photo error:", error);
@@ -385,10 +484,11 @@ const getFriendSuggestions = async (req, res) => {
       ...currentUser.friendRequests,
     ];
 
-    let suggestions = await userModel.find({
-      _id: { $nin: excludeIds },
-      block: false,
-    })
+    let suggestions = await userModel
+      .find({
+        _id: { $nin: excludeIds },
+        block: false,
+      })
       .select("fullName avatar friends")
       .limit(10);
 
