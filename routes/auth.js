@@ -1,11 +1,10 @@
 const router = require("express").Router();
-const { signup, loginUser, logout, authCheck, verifyCode, forgotPassword, resetPassword, loginAdmin } = require("../controllers/auth");
+const { signup, loginUser, authCheck, verifyCode, forgotPassword, resetPassword, loginAdmin } = require("../controllers/auth");
 const { protect } = require("../middleware/auth");
 
 router.post("/signup", signup);
 router.post("/login", loginUser);
 router.post("/admin/login", loginAdmin);
-router.post("/logout", logout);
 router.get("/authCheck", protect, authCheck);
 router.post("/forgot-password", forgotPassword);
 router.post("/verify-code", verifyCode);

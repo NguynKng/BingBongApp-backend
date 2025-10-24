@@ -7,6 +7,7 @@ module.exports = {
     SECRET_KEY: process.env.SECRET_KEY,
     NODE_ENV: process.env.NODE_ENV,
     FRONTEND_URL: process.env.FRONTEND_URL,
+    EXPO_URL: process.env.EXPO_URL,
     TURN_HOST: process.env.TURN_HOST,
     TURN_PORT: process.env.TURN_PORT || 3478,
     TURN_SECRET: process.env.TURN_SECRET,

@@ -106,11 +106,12 @@ const loginUser = async (req, res) => {
         .json({ success: false, message: "Invalid email or password." });
 
     // Generate and set token
-    const token = generateToken(user._id, res);
+    const token = generateToken(user._id);
 
     // Return user data
     return res.status(200).json({
       success: true,
+      token,
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -165,11 +166,12 @@ const loginAdmin = async (req, res) => {
     }
 
     // Generate and set token
-    const token = generateToken(user._id, res);
+    const token = generateToken(user._id);
 
     // Return user data
     return res.status(200).json({
       success: true,
+        token,
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -188,25 +190,6 @@ const loginAdmin = async (req, res) => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ success: false, message: "Server error" });
-  }
-};
-
-const logout = async (req, res) => {
-  try {
-    // Clear auth cookie
-    res.clearCookie("jwt-bingbong-token", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
-    });
-    return res
-      .status(200)
-      .json({ success: true, message: "Logged out successfully." });
-  } catch (error) {
-    console.error("Logout error:", error);
-    return res
-      .status(500)
-      .json({ success: false, message: "Internal server error." });
   }
 };
 
@@ -355,7 +338,6 @@ module.exports = {
   signup,
   loginUser,
   loginAdmin,
-  logout,
   authCheck,
   forgotPassword,
   verifyCode,

@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const path = require("path");
-const { PORT, FRONTEND_URL } = require("./config/envVars");
+const { PORT, FRONTEND_URL, EXPO_URL } = require("./config/envVars");
 const connectDB = require("./config/dbConnect");
 const cookieParser = require("cookie-parser");
 const morgan = require("morgan");
@@ -10,7 +10,7 @@ const { setupSocket } = require("./sockets/chatSocket");
 const http = require("http");
 
 const corsOptions = {
-  origin: [FRONTEND_URL, "http://192.168.2.245:5173"], // Change this to your frontend's URL
+  origin: [FRONTEND_URL, "http://192.168.2.245:5173", EXPO_URL], // Change this to your frontend's URL
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
   credentials: true, // Allow credentials   
 };
