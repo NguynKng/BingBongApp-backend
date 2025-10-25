@@ -359,7 +359,7 @@ const acceptFriendRequest = async (req, res) => {
     const updatedReceiver = await userModel
       .findById(receiverId)
       .select("-password");
-    await sendNotificationToUser(senderId, receiverId, "f");
+    await sendNotificationToUser(senderId, receiverId, "accepted_request");
 
     return res.status(200).json({
       success: true,

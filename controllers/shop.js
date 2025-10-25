@@ -74,4 +74,58 @@ const getShopBySlug = async (req, res) => {
   }
 };
 
-module.exports = { createSampleShop, getShopBySlug };
+const getAllShops = async (req, res) => {
+  try {
+    const shops = await Shop.find().populate("owner", "fullName avatar email");
+    return res.status(200).json({
+      success: true,
+      data: shops,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+    });
+  }
+};
+
+const getMyShops = async (req, res) => {
+  try {
+    const userId = req.user._id; // Lấy ID người dùng từ token
+    const shops = await Shop.find({ owner: userId }).populate("owner", "fullName avatar email");
+    return res.status(200).json({
+      success: true,
+      data: shops,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+    });
+  }
+};
+
+const getFollowedShops = async (req, res) => {
+  try {
+    const userId = req.user._id; // Lấy ID người dùng từ token
+    const shops = await Shop.find({ followers: userId }).populate("owner", "fullName avatar email");
+    return res.status(200).json({
+      success: true,
+      data: shops,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+    });
+  }
+};
+
+
+module.exports = { createSampleShop, getShopBySlug, getAllShops, getMyShops, getFollowedShops };
