@@ -4,6 +4,53 @@ const groupModel = require("../models/groupModel");
 const { removeDiacritics, deleteOldFile } = require("../helper/helper");
 const { sendNotificationToUser } = require("../controllers/notification");
 
+const updateUserInfo = async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    // 🧠 Các trường cho phép cập nhật
+    const { bio, address, website, education, work, socialLinks } = req.body;
+
+    // ✅ Cập nhật user
+    const updatedUser = await userModel.findByIdAndUpdate(
+      userId,
+      {
+        bio,
+        address,
+        website,
+        education,
+        work,
+        socialLinks,
+      },
+      { new: true } // trả về bản ghi sau khi cập nhật
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+    }
+
+    const newUpdatedUser = await userModel
+      .findById(userId)
+      .select("-password")
+      .populate({
+        path: "friends",
+        select: "fullName avatar", // chỉ lấy các field cần thiết
+      })
+      .populate({
+        path: "friendRequests",
+        select: "fullName avatar",
+      });
+
+    res.status(200).json({
+      message: "Cập nhật thông tin thành công",
+      data: newUpdatedUser,
+    });
+  } catch (error) {
+    console.error("❌ Lỗi khi cập nhật thông tin:", error);
+    res.status(500).json({ message: "Lỗi server", error: error.message });
+  }
+};
+
 const setAvatar = async (req, res) => {
   const { type, id } = req.body; // type: "user" | "shop" | "group"
   try {
@@ -523,4 +570,5 @@ module.exports = {
   declineFriendRequest,
   getAllUsers,
   getFriendSuggestions,
+  updateUserInfo,
 };

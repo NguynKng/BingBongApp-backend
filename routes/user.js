@@ -1,11 +1,12 @@
 const router = require('express').Router();
-const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions } = require('../controllers/user');
+const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions, updateUserInfo } = require('../controllers/user');
 const { protect, isAdmin } = require('../middleware/auth');
 const { uploadAvatarMiddleware, uploadCoverPhotoMiddleware } = require('../middleware/upload');
 
 // Set profile picture (avatar)
 router.get('/get-all', protect, isAdmin, getAllUsers);
 router.post('/avatar', protect, uploadAvatarMiddleware, setAvatar);
+router.post('/update-info/:id', protect, updateUserInfo);
 
 // Set cover photo
 router.post('/cover-photo', protect, uploadCoverPhotoMiddleware, setCoverPhoto);
