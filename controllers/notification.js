@@ -8,7 +8,7 @@ const sendNotificationToUser = async (
   type,
   postId = null
 ) => {
-  const actor = await UserModel.findById(actorId).select("fullName avatar");
+  const actor = await UserModel.findById(actorId).select("fullName avatar slug");
   if (!actor) throw new Error("Actor not found");
 
   const notification = new Notification({
@@ -24,7 +24,7 @@ const sendNotificationToUser = async (
 
   // Populate actor sau khi save
   const populatedNotification = await Notification.findById(notification._id)
-    .populate("actor", "fullName avatar")
+    .populate("actor", "fullName avatar slug")
     .lean();
 
   const io = getSocketInstance();
@@ -57,7 +57,7 @@ const createAndSendNotificationForFriend = async (
 
     const populatedNotification = await notification.populate(
       "actor",
-      "fullName avatar"
+      "fullName avatar slug"
     );
 
     const io = getSocketInstance();
@@ -100,7 +100,7 @@ const getNotification = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("actor", "fullName avatar")
+      .populate("actor", "fullName avatar slug")
 
     const total = await Notification.countDocuments({ user: userId });
 
@@ -131,7 +131,7 @@ const markAsAllRead = async (req, res) => {
     );
     const updatedNotifications = await Notification.find({ user: userId })
       .sort({ createdAt: -1 })
-      .populate("actor", "fullName avatar");
+      .populate("actor", "fullName avatar slug");
 
     res.status(200).json({
       success: true,

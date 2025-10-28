@@ -181,9 +181,9 @@ const sendMessage = async (req, res) => {
     }
 
     // Lookup sender/receiver user data
-    const sender = await User.findById(senderId).select("_id fullName avatar");
+    const sender = await User.findById(senderId).select("_id fullName avatar slug");
     const receiver = await User.findById(receiverId).select(
-      "_id fullName avatar"
+      "_id fullName avatar slug"
     );
 
     // Send recent chat info
@@ -201,6 +201,7 @@ const sendMessage = async (req, res) => {
       _id: sender?._id,
       fullName: sender?.fullName,
       avatar: sender?.avatar,
+        slug: sender?.slug,
     });
 
     if (userSocketMap[receiverId]) {

@@ -82,8 +82,8 @@ const createPost = async (req, res) => {
     // ✅ Populate bài đăng sau khi tạo
     const populatedPost = await postModel
       .findById(newPost._id)
-      .populate("author", "fullName avatar")
-      .populate("postedById", "fullName name avatar coverPhoto");
+      .populate("author", "fullName avatar slug")
+      .populate("postedById", "fullName name avatar coverPhoto slug");
 
     // ✅ Gửi thông báo cho bạn bè nếu là bài của User
     if (postedByType === "User") {
@@ -122,7 +122,7 @@ const getPosts = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("author", "fullName avatar")
+      .populate("author", "fullName avatar slug")
       .populate("postedById", "fullName name slug avatar coverPhoto")
       .populate({
         path: "reactions",
@@ -159,11 +159,11 @@ const getPostsByOwner = async (req, res) => {
     const posts = await postModel
       .find({ postedByType: type, postedById: id })
       .sort({ createdAt: -1 })
-      .populate("author", "fullName avatar")
+      .populate("author", "fullName avatar slug")
       .populate("postedById", "fullName name slug avatar coverPhoto")
       .populate({
         path: "reactions",
-        populate: { path: "user", select: "fullName avatar" },
+        populate: { path: "user", select: "fullName avatar slug" },
       });
 
     if (!posts) {
@@ -190,11 +190,11 @@ const getPostById = async (req, res) => {
     const { postId } = req.params;
     const post = await postModel
       .findById(postId)
-      .populate("author", "fullName avatar")
-      .populate("postedById", "fullName name avatar coverPhoto")
+      .populate("author", "fullName avatar slug")
+      .populate("postedById", "fullName name avatar coverPhoto slug")
       .populate({
         path: "comments",
-        populate: { path: "user", select: "fullName avatar" },
+        populate: { path: "user", select: "fullName avatar slug" },
         options: { sort: { createdAt: -1 } },
       });
 
@@ -329,7 +329,7 @@ const addComment = async (req, res) => {
 
     const populatedComment = await commentModel
       .findById(newComment._id)
-      .populate("user", "fullName avatar");
+      .populate("user", "fullName avatar slug");
 
     // 🔔 Gửi thông báo cho chủ bài viết
     if (post.author.toString() !== userId.toString()) {
@@ -389,7 +389,7 @@ const addReply = async (req, res) => {
 
     const populatedReply = await commentModel
       .findById(newReply._id)
-      .populate("user", "fullName avatar");
+      .populate("user", "fullName avatar slug");
 
     return res.status(201).json({
       success: true,
@@ -421,12 +421,12 @@ const getCommentsByPost = async (req, res) => {
     const comments = await commentModel
       .find({ post: postId, parent: null })
       .sort({ createdAt: -1 })
-      .populate("user", "fullName avatar")
+      .populate("user", "fullName avatar slug")
       .lean();
 
     const replies = await commentModel
       .find({ post: postId, parent: { $ne: null } })
-      .populate("user", "fullName avatar")
+      .populate("user", "fullName avatar slug")
       .lean();
 
     const commentMap = {};

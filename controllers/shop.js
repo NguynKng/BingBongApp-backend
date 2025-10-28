@@ -94,7 +94,7 @@ const getAllShops = async (req, res) => {
 const getMyShops = async (req, res) => {
   try {
     const userId = req.user._id; // Lấy ID người dùng từ token
-    const shops = await Shop.find({ owner: userId }).populate("owner", "fullName avatar email");
+    const shops = await Shop.find({ owner: userId }).populate("owner", "fullName avatar email slug");
     return res.status(200).json({
       success: true,
       data: shops,
@@ -112,7 +112,7 @@ const getMyShops = async (req, res) => {
 const getFollowedShops = async (req, res) => {
   try {
     const userId = req.user._id; // Lấy ID người dùng từ token
-    const shops = await Shop.find({ followers: userId }).populate("owner", "fullName avatar email");
+    const shops = await Shop.find({ followers: userId }).populate("owner", "fullName avatar email slug");
     return res.status(200).json({
       success: true,
       data: shops,

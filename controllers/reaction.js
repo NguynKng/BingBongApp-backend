@@ -17,7 +17,7 @@ const reactToPost = async (req, res) => {
   
       const existing = await ReactionModel.findOne({ user: userId, post: postId }).populate(
         'user',
-        'fullName avatar'
+        'fullName avatar slug'
       )
   
       if (existing) {
@@ -47,7 +47,7 @@ const reactToPost = async (req, res) => {
   
       post.reactions.push(newReaction._id)
       await post.save()
-      const populatedReaction = await newReaction.populate('user', 'fullName avatar')
+      const populatedReaction = await newReaction.populate('user', 'fullName avatar slug')
 
       if(post.author.toString() !== userId.toString()){
         // Create notification for the post author

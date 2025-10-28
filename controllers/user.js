@@ -34,11 +34,11 @@ const updateUserInfo = async (req, res) => {
       .select("-password")
       .populate({
         path: "friends",
-        select: "fullName avatar", // chỉ lấy các field cần thiết
+        select: "fullName avatar slug", // chỉ lấy các field cần thiết
       })
       .populate({
         path: "friendRequests",
-        select: "fullName avatar",
+        select: "fullName avatar slug",
       });
 
     res.status(200).json({
@@ -233,11 +233,47 @@ const getUserProfile = async (req, res) => {
       .select("-password")
       .populate({
         path: "friends",
-        select: "fullName avatar", // chỉ lấy các field cần thiết
+        select: "fullName avatar slug", // chỉ lấy các field cần thiết
       })
       .populate({
         path: "friendRequests",
-        select: "fullName avatar",
+        select: "fullName avatar slug",
+      });
+
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    return res.status(200).json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("Get user profile error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Something went wrong" });
+  }
+};
+
+// Get user profile
+const getUserProfileBySlug = async (req, res) => {
+  try {
+    // If userId is provided in params, use it, otherwise use the authenticated user's ID
+    const { slug } = req.params;
+
+    const user = await userModel
+      .findOne({ slug })
+      .select("-password")
+      .populate({
+        path: "friends",
+        select: "fullName avatar slug", // chỉ lấy các field cần thiết
+      })
+      .populate({
+        path: "friendRequests",
+        select: "fullName avatar slug",
       });
 
     if (!user) {
@@ -270,7 +306,7 @@ const getUserByName = async (req, res) => {
 
     const normalizedInput = removeDiacritics(name.toLowerCase());
 
-    const users = await userModel.find().select("fullName email avatar"); // exclude password
+    const users = await userModel.find().select("fullName email avatar slug"); // exclude password
 
     const matchedUsers = users.filter((user) => {
       const normalizedFullName = removeDiacritics(user.fullName.toLowerCase());
@@ -509,7 +545,7 @@ const getAllUsers = async (req, res) => {
     const users = await userModel
       .find()
       .select(
-        "_id email avatar fullName createdAt isVerified block role gender phoneNumber"
+        "_id email avatar fullName createdAt isVerified block role gender phoneNumber slug"
       );
     return res.status(200).json({ success: true, data: users });
   } catch (error) {
@@ -536,7 +572,7 @@ const getFriendSuggestions = async (req, res) => {
         _id: { $nin: excludeIds },
         block: false,
       })
-      .select("fullName avatar friends")
+      .select("fullName avatar friends slug")
       .limit(10);
 
     suggestions = suggestions.map((user) => {
@@ -571,4 +607,5 @@ module.exports = {
   getAllUsers,
   getFriendSuggestions,
   updateUserInfo,
+  getUserProfileBySlug
 };

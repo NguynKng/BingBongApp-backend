@@ -125,6 +125,7 @@ const loginUser = async (req, res) => {
         role: user.role,
         friendRequests: user.friendRequests,
         privacy: user.privacy,
+        slug: user.slug,
       },
     });
   } catch (err) {
@@ -185,6 +186,7 @@ const loginAdmin = async (req, res) => {
         friends: user.friends,
         friendRequests: user.friendRequests,
         privacy: user.privacy,
+        slug: user.slug,
       },
     });
   } catch (error) {
@@ -211,6 +213,7 @@ const authCheck = (req, res) => {
         friends: req.user.friends,
         friendRequests: req.user.friendRequests,
         privacy: req.user.privacy,
+        slug: req.user.slug,
       },
     });
   } catch (error) {

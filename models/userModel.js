@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const slugify = require("slugify");
 
 // Mạng xã hội (vẫn giữ nguyên)
 const SocialSchema = new mongoose.Schema({
@@ -33,11 +34,18 @@ const UserSchema = new mongoose.Schema(
     password: { type: String, required: true },
     fullName: { type: String, required: true },
     dateOfBirth: { type: String, required: true },
-    gender: { type: String, enum: ["Male", "Female", "Other"], default: "Other" },
+    gender: {
+      type: String,
+      enum: ["Male", "Female", "Other"],
+      default: "Other",
+    },
 
     avatar: { type: String, default: "/images/default-avatar/user.png" },
-    coverPhoto: { type: String, default: "/images/default-avatar/background-gray.avif" },
-
+    coverPhoto: {
+      type: String,
+      default: "/images/default-avatar/background-gray.avif",
+    },
+    slug: { type: String, unique: true, trim: true },
     // ======= Thông tin mở rộng =======
     bio: { type: String, default: "" },
     address: { type: String, default: "" },
@@ -47,7 +55,7 @@ const UserSchema = new mongoose.Schema(
     // 🎓 Học vấn & 💼 Công việc
     education: { type: EducationSchema, default: {} },
     work: { type: WorkSchema, default: {} },
-    socialLinks: {type: [SocialSchema], default: [] },
+    socialLinks: { type: [SocialSchema], default: [] },
 
     // Sở thích & kỹ năng
     skills: [{ type: String, trim: true }],
@@ -80,5 +88,38 @@ const UserSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("fullName") && this.slug) return next();
+
+  // 1️⃣ Chuyển fullName thành dạng slug không dấu
+  const parts = slugify(this.fullName, {
+    lower: true,
+    strict: true, // loại bỏ ký tự đặc biệt, giữ dấu "-"
+  }).split("-");
+
+  // 2️⃣ Nối lại bằng dấu chấm thay vì dấu gạch
+  const baseSlug = parts.join(".");
+
+  // 3️⃣ Sinh số random 6 chữ số và đảm bảo duy nhất
+  let slugCandidate;
+  let isUnique = false;
+
+  while (!isUnique) {
+    const randomNum = Math.floor(100000 + Math.random() * 900000);
+    slugCandidate = `${baseSlug}.${randomNum}`;
+
+    const existingUser = await mongoose.models.User.findOne({
+      slug: slugCandidate,
+    });
+
+    if (!existingUser) {
+      isUnique = true;
+    }
+  }
+
+  this.slug = slugCandidate;
+  next();
+});
 
 module.exports = mongoose.model("User", UserSchema);
