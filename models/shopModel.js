@@ -18,6 +18,8 @@ const ShopSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
     },
+
+    // 🏪 Thông tin mô tả
     description: {
       about: { type: String, trim: true },
       address: { type: String, trim: true },
@@ -25,6 +27,19 @@ const ShopSchema = new mongoose.Schema(
       email: { type: String, trim: true },
       website: { type: String, trim: true },
     },
+
+    // 🕒 Giờ mở - đóng cửa
+    openTime: { type: String, default: "08:00", trim: true },
+    closeTime: { type: String, default: "21:00", trim: true },
+
+    // 📦 Danh mục chính mà shop thuộc về (để phân loại shop)
+    mainCategory: {
+      type: String,
+      trim: true,
+      default: "Khác", // ví dụ: Thời trang, Ẩm thực, Điện tử,...
+    },
+
+    // 📋 Danh sách category con (các loại sản phẩm/dịch vụ)
     categories: [
       {
         _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
@@ -32,28 +47,59 @@ const ShopSchema = new mongoose.Schema(
         slug: { type: String, lowercase: true, trim: true },
       },
     ],
+
+    // 💬 Mạng xã hội / liên kết ngoài
+    socials: {
+      facebook: { type: String, trim: true },
+      instagram: { type: String, trim: true },
+      tiktok: { type: String, trim: true },
+      youtube: { type: String, trim: true },
+    },
+
+    // 📈 Dữ liệu thống kê
+    stats: {
+      views: { type: Number, default: 0 },
+      rating: { type: Number, default: 0 },
+      totalReviews: { type: Number, default: 0 },
+    },
+
+    // ❤️ Theo dõi
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
       },
     ],
+
+    // 🖼️ Hình ảnh
     avatar: { type: String, default: "/images/default-avatar/user.png" },
     coverPhoto: {
       type: String,
       default: "/images/default-avatar/background-gray.avif",
     },
+
+    // 📍 Vị trí (nếu sau này có map)
+    location: {
+      lat: { type: Number },
+      lng: { type: Number },
+    },
+
+    // 🔄 Trạng thái hoạt động (mở / tạm đóng / đang bảo trì)
+    status: {
+      type: String,
+      enum: ["open", "closed", "maintenance"],
+      default: "open",
+    },
   },
   { timestamps: true }
 );
 
-// Slug cho tên shop
+// 🔤 Tạo slug cho tên shop & danh mục
 ShopSchema.pre("save", function (next) {
   if (this.isModified("name")) {
     this.slug = removeVietnameseTones(this.name);
   }
 
-  // Tự động tạo slug cho từng category (nếu chưa có)
   if (this.isModified("categories")) {
     this.categories = this.categories.map((cat) => ({
       ...cat,

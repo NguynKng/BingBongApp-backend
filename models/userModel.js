@@ -53,8 +53,8 @@ const UserSchema = new mongoose.Schema(
     website: { type: String, default: "" },
 
     // 🎓 Học vấn & 💼 Công việc
-    education: { type: EducationSchema, default: {} },
-    work: { type: WorkSchema, default: {} },
+    education: { type: EducationSchema, default: [] },
+    work: { type: WorkSchema, default: [] },
     socialLinks: { type: [SocialSchema], default: [] },
 
     // Sở thích & kỹ năng
