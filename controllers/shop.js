@@ -1,4 +1,5 @@
 const Shop = require("../models/shopModel");
+const Product = require("../models/productModel");
 
 const createSampleShop = async (req, res) => {
   try {
@@ -94,7 +95,10 @@ const getAllShops = async (req, res) => {
 const getMyShops = async (req, res) => {
   try {
     const userId = req.user._id; // Lấy ID người dùng từ token
-    const shops = await Shop.find({ owner: userId }).populate("owner", "fullName avatar email slug");
+    const shops = await Shop.find({ owner: userId }).populate(
+      "owner",
+      "fullName avatar email slug"
+    );
     return res.status(200).json({
       success: true,
       data: shops,
@@ -112,7 +116,10 @@ const getMyShops = async (req, res) => {
 const getFollowedShops = async (req, res) => {
   try {
     const userId = req.user._id; // Lấy ID người dùng từ token
-    const shops = await Shop.find({ followers: userId }).populate("owner", "fullName avatar email slug");
+    const shops = await Shop.find({ followers: userId }).populate(
+      "owner",
+      "fullName avatar email slug"
+    );
     return res.status(200).json({
       success: true,
       data: shops,
@@ -127,5 +134,189 @@ const getFollowedShops = async (req, res) => {
   }
 };
 
+const addShopCategory = async (req, res) => {
+  try {
+    const userId = req.user._id; // Lấy ID người dùng từ token
+    const { shopId } = req.params;
+    const { name, isActive } = req.body;
 
-module.exports = { createSampleShop, getShopBySlug, getAllShops, getMyShops, getFollowedShops };
+    // Tìm shop thuộc về user
+    const shop = await Shop.findOne({ _id: shopId, owner: userId });
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop không tìm thấy",
+      });
+    }
+
+    // Kiểm tra danh mục đã tồn tại chưa (theo tên, không phân biệt hoa thường)
+    const isExist = shop.categories.some(
+      (c) => c.name.toLowerCase().trim() === category.name.toLowerCase().trim()
+    );
+
+    if (isExist) {
+      return res.status(400).json({
+        success: false,
+        message: "Danh mục này đã tồn tại trong shop",
+      });
+    }
+
+    // Thêm danh mục mới vào shop
+    shop.categories.push({ name, isActive });
+    await shop.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Thêm danh mục thành công",
+      data: shop.categories,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+    });
+  }
+};
+
+const updateShopCategory = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { shopId } = req.params;
+    const { name, isActive, _id } = req.body;
+
+    const shop = await Shop.findOne({ _id: shopId, owner: userId });
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop không tìm thấy",
+      });
+    }
+
+    // 🔍 Kiểm tra xem tên danh mục mới đã tồn tại (trừ chính danh mục đang cập nhật)
+    const duplicateCategory = shop.categories.find(
+      (cat) =>
+        cat.name.toLowerCase().trim() === name.toLowerCase().trim() &&
+        cat._id.toString() !== _id
+    );
+
+    if (duplicateCategory) {
+      return res.status(400).json({
+        success: false,
+        message: "Tên danh mục này đã tồn tại trong shop",
+      });
+    }
+
+    // 🔍 Tìm index danh mục cần update
+    const categoryIndex = shop.categories.findIndex(
+      (cat) => cat._id.toString() === _id
+    );
+
+    if (categoryIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Danh mục không tìm thấy",
+      });
+    }
+
+    // 🛠 Cập nhật danh mục trong sản phẩm liên quan
+    await Product.updateMany(
+      { shop: shopId, category: shop.categories[categoryIndex].name },
+      { category: name }
+    );
+
+    // ✅ Ghi đè dữ liệu danh mục
+    shop.categories[categoryIndex] = {
+      _id,
+      name,
+      isActive,
+    };
+    await shop.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật danh mục thành công",
+      data: shop.categories,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+      error: error.message,
+    });
+  }
+};
+
+const updateShopInfo = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { shopId } = req.params;
+    const { description, socials, openTime, closeTime, mainCategory, status, mapURL } =
+      req.body;
+
+    // 🔍 Tìm shop thuộc về user
+    const shop = await Shop.findOne({ _id: shopId, owner: userId });
+    if (!shop) {
+      return res.status(404).json({
+        success: false,
+        message: "Shop không tồn tại hoặc bạn không có quyền chỉnh sửa",
+      });
+    }
+
+    // 🔧 Cập nhật thông tin
+    if (description) {
+      shop.description = {
+        ...shop.description,
+        about: description.about || shop.description.about,
+        address: description.address || shop.description.address,
+        phone: description.phone || shop.description.phone,
+        email: description.email || shop.description.email,
+        website: description.website || shop.description.website,
+      };
+    }
+
+    if (socials) {
+      shop.socials = {
+        ...shop.socials,
+        facebook: socials.facebook || shop.socials.facebook,
+        instagram: socials.instagram || shop.socials.instagram,
+        youtube: socials.youtube || shop.socials.youtube,
+        tiktok: socials.tiktok || shop.socials.tiktok,
+      };
+    }
+
+    if (openTime) shop.openTime = openTime;
+    if (closeTime) shop.closeTime = closeTime;
+    if (mainCategory) shop.mainCategory = mainCategory;
+    if (status) shop.status = status;
+    if (mapURL) shop.mapURL = mapURL;
+
+    await shop.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật thông tin shop thành công",
+      data: { shop },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server khi cập nhật thông tin shop",
+      error: error.message,
+    });
+  }
+};
+
+module.exports = {
+  createSampleShop,
+  getShopBySlug,
+  getAllShops,
+  getMyShops,
+  getFollowedShops,
+  addShopCategory,
+  updateShopCategory,
+  updateShopInfo,
+};

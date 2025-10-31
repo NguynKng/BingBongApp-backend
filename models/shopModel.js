@@ -45,6 +45,7 @@ const ShopSchema = new mongoose.Schema(
         _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
         name: { type: String, required: true, trim: true },
         slug: { type: String, lowercase: true, trim: true },
+        isActive: { type: Boolean, default: true },
       },
     ],
 
@@ -79,10 +80,7 @@ const ShopSchema = new mongoose.Schema(
     },
 
     // 📍 Vị trí (nếu sau này có map)
-    location: {
-      lat: { type: Number },
-      lng: { type: Number },
-    },
+    mapURL: { type: String, trim: true. default },
 
     // 🔄 Trạng thái hoạt động (mở / tạm đóng / đang bảo trì)
     status: {
