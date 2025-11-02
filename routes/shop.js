@@ -2,6 +2,7 @@ const router = require("express").Router();
 const { protect } = require("../middleware/auth");
 const {
   createSampleShop,
+  createShop,
   getShopBySlug,
   getAllShops,
   getMyShops,
@@ -15,6 +16,7 @@ router.get("/", getAllShops);
 router.get("/my-shops", protect, getMyShops);
 router.get("/followed-shops", protect, getFollowedShops);
 router.post("/create-sample-shop", createSampleShop);
+router.post("/create-shop", protect, createShop);
 router.get("/:slug", getShopBySlug);
 
 router.post("/category/:shopId", protect, addShopCategory);

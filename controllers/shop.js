@@ -44,6 +44,44 @@ const createSampleShop = async (req, res) => {
   }
 };
 
+const createShop = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { name, description, categories } = req.body;
+    if (!name || !description || !categories || categories.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Vui lòng cung cấp đầy đủ thông tin để tạo shop",
+      });
+    }
+    const isExistingName = await Shop.findOne({ name: name.trim() });
+    if (isExistingName) {
+      return res.status(400).json({
+        success: false,
+        message: "Tên shop đã tồn tại, vui lòng chọn tên khác",
+      });
+    }
+    const shop = new Shop({
+      owner: userId,
+      name,
+      description,
+      categories,
+    });
+    await shop.save();
+    return res.status(201).json({
+      success: true,
+      message: "Tạo shop thành công",
+      data: shop,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi server",
+    });
+  }
+};
+
 const getShopBySlug = async (req, res) => {
   try {
     const { slug } = req.params;
@@ -253,8 +291,15 @@ const updateShopInfo = async (req, res) => {
   try {
     const userId = req.user._id;
     const { shopId } = req.params;
-    const { description, socials, openTime, closeTime, mainCategory, status, mapURL } =
-      req.body;
+    const {
+      description,
+      socials,
+      openTime,
+      closeTime,
+      mainCategory,
+      status,
+      mapURL,
+    } = req.body;
 
     // 🔍 Tìm shop thuộc về user
     const shop = await Shop.findOne({ _id: shopId, owner: userId });
@@ -312,6 +357,7 @@ const updateShopInfo = async (req, res) => {
 
 module.exports = {
   createSampleShop,
+  createShop,
   getShopBySlug,
   getAllShops,
   getMyShops,
