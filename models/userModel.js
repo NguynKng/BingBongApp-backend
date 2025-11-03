@@ -67,7 +67,10 @@ const UserSchema = new mongoose.Schema(
 
     // 🏅 Huy hiệu
     badgeInventory: [BadgeSchema],
-
+    cart: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Cart", // ✅ Reference the Cart model instead of an array
+    },
     // ⚙️ Cài đặt
     isVerified: { type: Boolean, default: false },
     block: { type: Boolean, default: false },
