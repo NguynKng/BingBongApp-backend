@@ -2,24 +2,33 @@ const mongoose = require("mongoose");
 const slugify = require("slugify");
 
 // Mạng xã hội (vẫn giữ nguyên)
-const SocialSchema = new mongoose.Schema({
-  platform: { type: String, trim: true }, // Facebook, Instagram, LinkedIn...
-  url: { type: String, trim: true },
-});
+const SocialSchema = new mongoose.Schema(
+  {
+    platform: { type: String, trim: true }, // Facebook, Instagram, LinkedIn...
+    url: { type: String, trim: true },
+  },
+  { _id: false }
+);
 
 // 🎓 Học vấn đơn giản
-const EducationSchema = new mongoose.Schema({
-  school: { type: String, required: true, trim: true },
-  major: { type: String, trim: true }, // Ngành học
-  year: { type: String, trim: true }, // Ví dụ: "2019 - 2023" hoặc chỉ "2023"
-});
+const EducationSchema = new mongoose.Schema(
+  {
+    school: { type: String, required: true, trim: true },
+    major: { type: String, trim: true }, // Ngành học
+    year: { type: String, trim: true }, // Ví dụ: "2019 - 2023" hoặc chỉ "2023"
+  },
+  { _id: false }
+);
 
 // 💼 Công việc đơn giản
-const WorkSchema = new mongoose.Schema({
-  company: { type: String, required: true, trim: true },
-  position: { type: String, trim: true },
-  duration: { type: String, trim: true }, // Ví dụ: "2022 - nay" hoặc "2020 - 2023"
-});
+const WorkSchema = new mongoose.Schema(
+  {
+    company: { type: String, required: true, trim: true },
+    position: { type: String, trim: true },
+    duration: { type: String, trim: true }, // Ví dụ: "2022 - nay" hoặc "2020 - 2023"
+  },
+  { _id: false }
+);
 
 const BadgeSchema = new mongoose.Schema({
   badgeId: { type: mongoose.Schema.Types.ObjectId, ref: "Badge" },
@@ -53,8 +62,8 @@ const UserSchema = new mongoose.Schema(
     website: { type: String, default: "" },
 
     // 🎓 Học vấn & 💼 Công việc
-    education: { type: EducationSchema, default: [] },
-    work: { type: WorkSchema, default: [] },
+    education: { type: EducationSchema, default: {} },
+    work: { type: WorkSchema, default: {} },
     socialLinks: { type: [SocialSchema], default: [] },
 
     // Sở thích & kỹ năng

@@ -10,7 +10,7 @@ const { setupSocket } = require("./sockets/chatSocket");
 const http = require("http");
 
 const corsOptions = {
-  origin: [FRONTEND_URL, "http://192.168.2.245:5173", EXPO_URL], // Change this to your frontend's URL
+  origin: [FRONTEND_URL, "http://192.168.2.245:5173", EXPO_URL, "http://localhost:3000"], // Change this to your frontend's URL
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
   credentials: true, // Allow credentials   
 };

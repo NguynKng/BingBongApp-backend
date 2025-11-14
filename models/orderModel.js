@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
+const { v4: uuidv4 } = require("uuid");
 
 const OrderSchema = new mongoose.Schema(
   {
+    orderId: {
+      type: String,
+      unique: true,
+      default: () => "ORD-" + uuidv4().split("-")[0].toUpperCase(), // ví dụ: ORD-A1B2C3D4
+    },
     shop: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Shop",
@@ -14,25 +20,18 @@ const OrderSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
-        count: {
-          type: Number,
-          required: true,
-          min: 1,
-        },
-        price: {
-          // ✅ Store product price at the time of order
-          type: Number,
-          required: true,
-        },
+        variant: mongoose.Schema.Types.ObjectId,
+        quantity: { type: Number, required: true, default: 1 },
+        price: { type: Number, required: true },
       },
     ],
     total: {
-      // ✅ Store the total order price
+      // ✅ Tổng giá trị đơn hàng
       type: Number,
       required: true,
     },
     shipping: {
-      // ✅ Shipping Address
+      // ✅ Địa chỉ giao hàng
       firstName: { type: String, required: true },
       lastName: { type: String, required: true },
       phoneNumber: { type: String, required: true },
@@ -43,14 +42,13 @@ const OrderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
       enum: [
-        "Not Processed",
+        "Pending",
         "Processing",
-        "Cash on Delivery",
-        "Dispatched",
+        "Shipping",
+        "Completed",
         "Cancelled",
-        "Delivered",
       ],
-      default: "Not Processed",
+      default: "Pending",
       required: true,
     },
     orderBy: {

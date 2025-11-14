@@ -38,6 +38,26 @@ const ProductSchema = new mongoose.Schema(
     ],
     images: [String],
     brand: { type: String, default: "" },
+    ratings: [
+      {
+        star: Number,
+        comment: String,
+        postedBy: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        createdAt: {
+          type: Date,
+        },
+        updatedAt: {
+          type: Date,
+        },
+      },
+    ],
+    totalRating: {
+      type: Number,
+      default: 0,
+    },
     status: {
       type: String,
       enum: ["active", "inactive", "deleted"],

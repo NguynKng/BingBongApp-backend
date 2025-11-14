@@ -340,7 +340,10 @@ const updateProductById = async (req, res) => {
 const getProductBySlug = async (req, res) => {
   const { slug, shopId } = req.params;
   try {
-    const product = await Product.findOne({ slug, shop: shopId });
+    const product = await Product.findOne({ slug, shop: shopId }).populate(
+      "ratings.postedBy",
+      "fullName avatar slug"
+    );
     if (!product) {
       return res.status(404).json({
         success: false,
@@ -457,10 +460,70 @@ const getProductsByShop = async (req, res) => {
   }
 };
 
+const rateProduct = async (req, res) => {
+  try {
+    const { productId } = req.params;
+    const { star, comment } = req.body;
+    const userId = req.user._id; // assuming you use auth middleware
+
+    if (!star || star < 1 || star > 5) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Star rating must be 1-5." });
+    }
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found." });
+    }
+
+    const newRating = {
+      star,
+      comment,
+      postedBy: userId,
+      createdAt: new Date(),
+    };
+
+    // add new
+    product.ratings.push(newRating);
+
+    // recalculate average rating
+    const totalStars = product.ratings.reduce((acc, r) => acc + r.star, 0);
+    product.totalRating = product.ratings.length
+      ? (totalStars / product.ratings.length).toFixed(1)
+      : 0;
+
+    await product.save();
+    // populate riêng rating mới nhất
+    const populatedProduct = await Product.populate(product, {
+      path: "ratings.postedBy",
+      select: "fullName avatar slug",
+    });
+
+    const populatedRating =
+      populatedProduct.ratings[populatedProduct.ratings.length - 1];
+
+    return res.status(200).json({
+      success: true,
+      message: "Rating submitted successfully.",
+      data: populatedRating,
+    });
+  } catch (err) {
+    console.error("Rate Product Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error.",
+    });
+  }
+};
+
 module.exports = {
   createProduct,
   getProductsByShop,
   getProductBySlug,
   getProductById,
   updateProductById,
+  rateProduct,
 };

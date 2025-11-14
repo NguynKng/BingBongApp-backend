@@ -86,7 +86,7 @@ const addToCart = async (req, res) => {
 
     const updatedCart = await cartModel.findById(cart._id).populate({
       path: "items.product",
-      populate: { path: "shop", select: "name" },
+      populate: { path: "shop", select: "slug name" },
     });
 
     return res.status(200).json({
@@ -111,7 +111,7 @@ const getUserCart = async (req, res) => {
   try {
     const cart = await cartModel.findOne({ orderBy: userId }).populate({
       path: "items.product",
-      populate: { path: "shop", select: "name" },
+      populate: { path: "shop", select: "slug name" },
     });
 
     if (!cart)
@@ -135,7 +135,7 @@ const getUserCart = async (req, res) => {
 // =========================
 const removeFromCart = async (req, res) => {
   const { _id: userId } = req.user;
-  const { productId, variantName } = req.body;
+  const { productId, variantId } = req.params;
 
   try {
     let cart = await cartModel.findOne({ orderBy: userId });
@@ -149,7 +149,7 @@ const removeFromCart = async (req, res) => {
       (item) =>
         !(
           item.product.toString() === productId &&
-          (!variantName || item.variant?.name === variantName)
+          (!variantId || item.variant?._id.toString() === variantId)
         )
     );
 
@@ -158,7 +158,7 @@ const removeFromCart = async (req, res) => {
 
     const updatedCart = await cartModel.findById(cart._id).populate({
       path: "items.product",
-      populate: { path: "shop", select: "name" },
+      populate: { path: "shop", select: "slug name" },
     });
 
     return res.status(200).json({
@@ -200,9 +200,85 @@ const clearCart = async (req, res) => {
   }
 };
 
+const minusFromCart = async (req, res) => {
+  const { _id: userId } = req.user;
+  const { productId, variantId } = req.body;
+
+  try {
+    let cart = await cartModel.findOne({ orderBy: userId });
+    if (!cart)
+      return res
+        .status(404)
+        .json({ success: false, message: "Cart not found." });
+
+    const product = await productModel.findById(productId);
+    if (!product)
+      return res
+        .status(404)
+        .json({ success: false, message: "Product not found." });
+
+    // 🔹 Xác định variant nếu có
+    const selectedVariant = variantId
+      ? product.variants.find((v) => v._id.toString() === variantId)
+      : null;
+
+    const price =
+      selectedVariant?.price ??
+      product.basePrice - (product.basePrice * product.discount) / 100;
+
+    // 🔹 Tìm sản phẩm trong giỏ hàng
+    const existingItem = cart.items.find(
+      (item) =>
+        item.product.toString() === productId &&
+        (!variantId || item.variant?._id.toString() === variantId)
+    );
+
+    if (!existingItem)
+      return res
+        .status(404)
+        .json({ success: false, message: "Item not found in cart." });
+
+    // 🔹 Nếu còn > 1 → giảm số lượng
+    if (existingItem.quantity > 1) {
+      existingItem.quantity -= 1;
+      existingItem.price = price * existingItem.quantity;
+    } else {
+      // 🔹 Nếu còn 1 → xóa khỏi giỏ hàng
+      cart.items = cart.items.filter(
+        (item) =>
+          !(
+            item.product.toString() === productId &&
+            (!variantId || item.variant?._id.toString() === variantId)
+          )
+      );
+    }
+
+    // 🔹 Cập nhật tổng tiền
+    cart.total = cart.items.reduce((sum, item) => sum + item.price, 0);
+    await cart.save();
+
+    const updatedCart = await cartModel.findById(cart._id).populate({
+      path: "items.product",
+      populate: { path: "shop", select: "slug name" },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Product quantity updated (decreased).",
+      data: updatedCart,
+    });
+  } catch (err) {
+    console.error("❌ minusFromCart Error:", err);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error decreasing product quantity." });
+  }
+};
+
 module.exports = {
   addToCart,
   getUserCart,
   removeFromCart,
   clearCart,
+  minusFromCart,
 };

@@ -16,7 +16,7 @@ router.post('/cover-photo', protect, uploadCoverPhotoMiddleware, setCoverPhoto);
 // Get own profile
 router.get('/profile', protect, getUserProfile);
 
-router.get('/profile/slug/:slug', protect, getUserProfileBySlug);
+router.get('/profile/slug/:slug', getUserProfileBySlug);
 // Get specific user profile
 router.get('/profile/:userId', protect, getUserProfile);
 

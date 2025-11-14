@@ -106,7 +106,7 @@ const loginUser = async (req, res) => {
         .json({ success: false, message: "Invalid email or password." });
 
     // Generate and set token
-    const token = generateToken(user._id);
+    const token = generateToken(res, user._id);
 
     // Return user data
     return res.status(200).json({
@@ -167,12 +167,12 @@ const loginAdmin = async (req, res) => {
     }
 
     // Generate and set token
-    const token = generateToken(user._id);
+    const token = generateToken(res, user._id);
 
     // Return user data
     return res.status(200).json({
       success: true,
-        token,
+      token,
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -344,5 +344,5 @@ module.exports = {
   authCheck,
   forgotPassword,
   verifyCode,
-  resetPassword
+  resetPassword,
 };

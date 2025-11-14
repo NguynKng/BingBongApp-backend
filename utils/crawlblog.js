@@ -1,9 +1,12 @@
 const puppeteer = require("puppeteer");
+const { NEWS_API_KEY } = require("../config/envVars");
 
 const crawlBlog = async (req, res) => {
   try {
-    const { pageNumber } = req.query
-    const url = pageNumber ? `https://techcrunch.com/latest/page/${pageNumber}` : "https://techcrunch.com/latest";
+    const { pageNumber } = req.query;
+    const url = pageNumber
+      ? `https://techcrunch.com/latest/page/${pageNumber}`
+      : "https://techcrunch.com/latest";
 
     const browser = await puppeteer.launch();
     const page = await browser.newPage();
@@ -11,21 +14,16 @@ const crawlBlog = async (req, res) => {
     await page.waitForSelector("body");
 
     const articles = await page.evaluate(() => {
-        return Array.from(
-          document.querySelectorAll("ul li"),
-          (el) => ({
-            time: el.querySelector("time")?.innerText || "",
-            link_author: el.querySelector(".loop-card__author")?.href || "",
-            author: el.querySelector(".loop-card__author")?.innerText || "",
-            link_cat: el.querySelector(".loop-card__cat")?.href || "",
-            category: el.querySelector(".loop-card__cat")?.innerText || "",
-            title: el.querySelector("h3")?.innerText || "",
-            link: el.querySelector(".loop-card__title > a")?.href || "",
-            image: el.querySelector("img")?.src || "",
-          })
-        ).filter(
-          (article) => article.title && article.link && article.image
-        );
+      return Array.from(document.querySelectorAll("ul li"), (el) => ({
+        time: el.querySelector("time")?.innerText || "",
+        link_author: el.querySelector(".loop-card__author")?.href || "",
+        author: el.querySelector(".loop-card__author")?.innerText || "",
+        link_cat: el.querySelector(".loop-card__cat")?.href || "",
+        category: el.querySelector(".loop-card__cat")?.innerText || "",
+        title: el.querySelector("h3")?.innerText || "",
+        link: el.querySelector(".loop-card__title > a")?.href || "",
+        image: el.querySelector("img")?.src || "",
+      })).filter((article) => article.title && article.link && article.image);
     });
 
     await browser.close();
@@ -39,6 +37,22 @@ const crawlBlog = async (req, res) => {
   }
 };
 
+const getTechNews = async (req, res) => {
+  try {
+    const url = `https://newsapi.org/v2/top-headlines?country=us&category=technology&apiKey=${NEWS_API_KEY}`;
+
+    const response = await fetch(url);
+    const data = await response.json();
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ success: false, message: "Error crawling the blog" });
+  }
+};
+
 module.exports = {
   crawlBlog,
+  getTechNews,
 };

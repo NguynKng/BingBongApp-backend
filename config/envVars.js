@@ -5,6 +5,7 @@ module.exports = {
     PORT: process.env.PORT || 8000,
     MONGO_URI: process.env.MONGO_URI,
     SECRET_KEY: process.env.SECRET_KEY,
+    NEWS_API_KEY: process.env.NEWS_API_KEY,
     NODE_ENV: process.env.NODE_ENV,
     FRONTEND_URL: process.env.FRONTEND_URL,
     EXPO_URL: process.env.EXPO_URL,

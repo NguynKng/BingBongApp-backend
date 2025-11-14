@@ -4,7 +4,7 @@ const { protect } = require('../middleware/auth');
 const { uploadImageMessageMiddleware } = require('../middleware/upload');
 
 router.get('/', protect, getAllChats);
-router.post('/generate-ai-response', protect, generateAiResponse);
+router.post('/generate-ai-response',  generateAiResponse);
 router.post('/send-message', protect, uploadImageMessageMiddleware, sendMessage);
 router.get('/history/:userChatId', protect, getHistoryChat);
 router.post('/translate-text', translateText);
