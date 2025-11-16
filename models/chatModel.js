@@ -4,13 +4,13 @@ const ChatSchema = new mongoose.Schema(
   {
     participants: [
       {
-        type: Schema.Types.ObjectId,
+        type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true,
       },
     ],
     lastMessage: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Message",
       default: null,
     },
@@ -21,8 +21,12 @@ const ChatSchema = new mongoose.Schema(
     groupName: {
       type: String,
     },
+    avatar: {
+        type: String,
+        default: "/images/default-avatar/group-chat.png",
+    },
     createdBy: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },

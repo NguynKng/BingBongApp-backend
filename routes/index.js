@@ -5,6 +5,7 @@ router.use("/user", require('./user'))
 router.use("/posts", require('./post'))
 router.use('/quiz', require ('./quiz'));
 router.use("/messages", require('./message'))
+router.use("/chat", require('./chat'))
 router.use("/quizScore", require('./quiz/quizScore'))
 router.use("/notifications", require('./notification'))
 router.use("/blog", require('./blog'))

@@ -1,6 +1,6 @@
 const UserModel = require("../models/userModel");
 const Notification = require("../models/notificationModel");
-const { getSocketInstance } = require("../sockets/socketInstance");
+const { emitToUser } = require("../sockets/chatSocket");
 
 const sendNotificationToUser = async (
   targetUserId,
@@ -8,7 +8,9 @@ const sendNotificationToUser = async (
   type,
   postId = null
 ) => {
-  const actor = await UserModel.findById(actorId).select("fullName avatar slug");
+  const actor = await UserModel.findById(actorId).select(
+    "fullName avatar slug"
+  );
   if (!actor) throw new Error("Actor not found");
 
   const notification = new Notification({
@@ -27,8 +29,11 @@ const sendNotificationToUser = async (
     .populate("actor", "fullName avatar slug")
     .lean();
 
-  const io = getSocketInstance();
-  io.to(targetUserId).emit("new_notification", {
+  //   const io = getSocketInstance();
+  //   io.to(targetUserId).emit("new_notification", {
+  //     notification: populatedNotification,
+  //   });
+  emitToUser(targetUserId, "new_notification", {
     notification: populatedNotification,
   });
 };
@@ -60,8 +65,11 @@ const createAndSendNotificationForFriend = async (
       "fullName avatar slug"
     );
 
-    const io = getSocketInstance();
-    io.to(friendId.toString()).emit("new_notification", {
+    // const io = getSocketInstance();
+    // io.to(friendId.toString()).emit("new_notification", {
+    //   notification: populatedNotification,
+    // });
+    emitToUser(friendId.toString(), "new_notification", {
       notification: populatedNotification,
     });
 
@@ -100,7 +108,7 @@ const getNotification = async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate("actor", "fullName avatar slug")
+      .populate("actor", "fullName avatar slug");
 
     const total = await Notification.countDocuments({ user: userId });
 

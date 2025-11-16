@@ -6,7 +6,7 @@ const {
   TURN_PORT,
   TURN_SECRET,
 } = require("../config/envVars");
-const { setSocketInstance } = require("./socketInstance");
+const { setSocketInstance, getSocketInstance } = require("./socketInstance");
 const crypto = require("crypto");
 
 // userId -> Set(socketId)
@@ -38,6 +38,12 @@ function removeRoomSocket(roomId, socketId) {
   if (rooms[roomId].size === 0) delete rooms[roomId];
 }
 
+function emitToUser(userId, event, payload) {
+    const io = getSocketInstance();
+    const sids = getSocketsByUser(userId) || [];
+    sids.forEach((sid) => io.to(sid).emit(event, payload));
+  }
+
 // dọn dẹp 1 pending call
 function clearPending(callId) {
   const entry = pendingCalls.get(callId);
@@ -58,11 +64,6 @@ function setupSocket(server) {
   });
 
   setSocketInstance(io);
-
-  function emitToUser(userId, event, payload) {
-    const sids = getSocketsByUser(userId) || [];
-    sids.forEach((sid) => io.to(sid).emit(event, payload));
-  }
 
   io.on("connection", (socket) => {
     console.log(`[SOCKET CONNECTED] ${socket.id}`);
@@ -254,4 +255,5 @@ function setupSocket(server) {
 module.exports = {
   setupSocket,
   userSocketMap,
+  emitToUser
 };
