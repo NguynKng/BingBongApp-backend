@@ -1,8 +1,33 @@
 const userModel = require("../models/userModel");
 const shopModel = require("../models/shopModel");
 const groupModel = require("../models/groupModel");
+const postModel = require("../models/postModel");
+const commentModel = require("../models/commentModel");
+const reactionModel = require("../models/reactionModel");
 const { removeDiacritics, deleteOldFile } = require("../helper/helper");
 const { sendNotificationToUser } = require("../controllers/notification");
+
+const getUserProgress = async (userId) => {
+  const user = await userModel.findById(userId).select("createdAt friends");
+
+  const posts_count = await postModel.countDocuments({ author: userId });
+  const comments_count = await commentModel.countDocuments({ user: userId });
+
+  const postIds = await postModel.find({ author: userId }).distinct("_id");
+  const likes_received = await reactionModel.countDocuments({ post: { $in: postIds } });
+  const friends_count = user.friends.length;
+
+  const account_age =
+    Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
+
+  return {
+    posts_count,
+    comments_count,
+    likes_received,
+    friends_count,
+    account_age
+  };
+};
 
 const updateUserInfo = async (req, res) => {
   try {
@@ -267,6 +292,13 @@ const getUserProfileBySlug = async (req, res) => {
     const user = await userModel
       .findOne({ slug })
       .select("-password")
+      .populate({
+        path: "badgeInventory",
+        populate: {
+            path: "badgeId",
+            select: "name tier description",
+        }
+      })
       .populate({
         path: "friends",
         select: "fullName avatar slug", // chỉ lấy các field cần thiết
@@ -594,6 +626,19 @@ const getFriendSuggestions = async (req, res) => {
   }
 };
 
+const getUserStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const progress = await getUserProgress(userId);
+    return res.status(200).json({ success: true, data: progress });
+  } catch (error) {
+    console.error("Get user stats error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   setAvatar,
   setCoverPhoto,
@@ -607,5 +652,7 @@ module.exports = {
   getAllUsers,
   getFriendSuggestions,
   updateUserInfo,
-  getUserProfileBySlug
+  getUserProfileBySlug,
+  getUserStats,
+  getUserProgress,
 };

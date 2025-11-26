@@ -164,4 +164,40 @@ const getOrderById = async (req, res) => {
   }
 };
 
-module.exports = { createOrder, getUserOrders, getShopOrders, getOrderById };
+const confirmOrder = async (req, res) => {
+  const { orderId } = req.params;
+  const { _id: userId } = req.user;
+  try {
+    const order = await orderModel.findOne({ orderId }).populate("shop");
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
+    }
+    const isShopOwner = order.shop.owner.toString() === userId.toString();
+    if (!isShopOwner) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to confirm this order.",
+      });
+    }
+    order.orderStatus = "Completed";
+    await order.save();
+    return res
+      .status(200)
+      .json({ success: true, message: "Order confirmed successfully." });
+  } catch (error) {
+    console.error("❌ confirmOrder Error:", error);
+    return res
+      .status(500)
+      .json({ success: false, message: "Error confirming order." });
+  }
+};
+
+module.exports = {
+  createOrder,
+  getUserOrders,
+  getShopOrders,
+  getOrderById,
+  confirmOrder,
+};

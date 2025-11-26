@@ -13,7 +13,7 @@ const SocialSchema = new mongoose.Schema(
 // 🎓 Học vấn đơn giản
 const EducationSchema = new mongoose.Schema(
   {
-    school: { type: String, required: true, trim: true },
+    school: { type: String, trim: true },
     major: { type: String, trim: true }, // Ngành học
     year: { type: String, trim: true }, // Ví dụ: "2019 - 2023" hoặc chỉ "2023"
   },
@@ -23,7 +23,7 @@ const EducationSchema = new mongoose.Schema(
 // 💼 Công việc đơn giản
 const WorkSchema = new mongoose.Schema(
   {
-    company: { type: String, required: true, trim: true },
+    company: { type: String, trim: true },
     position: { type: String, trim: true },
     duration: { type: String, trim: true }, // Ví dụ: "2022 - nay" hoặc "2020 - 2023"
   },

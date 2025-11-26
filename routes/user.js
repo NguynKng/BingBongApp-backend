@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions, updateUserInfo, getUserProfileBySlug } = require('../controllers/user');
+const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions, updateUserInfo, getUserProfileBySlug, getUserStats } = require('../controllers/user');
 const { protect, isAdmin } = require('../middleware/auth');
 const { uploadAvatarMiddleware, uploadCoverPhotoMiddleware } = require('../middleware/upload');
 
@@ -15,6 +15,7 @@ router.post('/cover-photo', protect, uploadCoverPhotoMiddleware, setCoverPhoto);
 
 // Get own profile
 router.get('/profile', protect, getUserProfile);
+router.get('/stats', protect, getUserStats);
 
 router.get('/profile/slug/:slug', getUserProfileBySlug);
 // Get specific user profile
