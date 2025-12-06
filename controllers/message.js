@@ -79,6 +79,8 @@ const sendMessage = async (req, res) => {
     // ======================================================
     const chat = await Chat.findById(targetChatId)
       .populate("participants", "fullName avatar slug")
+      .populate("shopId", "name slug avatar owner")
+        .populate("fanpageId", "name slug avatar")
       .populate({
         path: "lastMessage",
         populate: { path: "sender", select: "fullName avatar slug" },

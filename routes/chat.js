@@ -1,6 +1,6 @@
 const router = require("express").Router();
 const {
-  getChatIdByUserId,
+  getChatIdByTypeId,
   getChatById,
   createGroupChat,
   getRecentChats,
@@ -8,8 +8,8 @@ const {
 const { protect } = require("../middleware/auth");
 
 router.get("/recent", protect, getRecentChats);
+router.get("/with", protect, getChatIdByTypeId);
 router.get("/:chatId", protect, getChatById);
-router.get("/with/:userId", protect, getChatIdByUserId);
 router.post("/group", protect, createGroupChat);
 
 module.exports = router;

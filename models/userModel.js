@@ -84,6 +84,16 @@ const UserSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     block: { type: Boolean, default: false },
     role: { type: String, enum: ["user", "admin"], default: "user" },
+    ringtones: [
+      {
+        _id: { type: mongoose.Schema.Types.ObjectId, auto: true },
+        name: { type: String, trim: true },
+        url: { type: String, required: true },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    activeRingtone: { type: mongoose.Schema.Types.ObjectId, default: null },
 
     privacy: {
       profileVisibility: {

@@ -57,13 +57,6 @@ const ShopSchema = new mongoose.Schema(
       youtube: { type: String, trim: true },
     },
 
-    // 📈 Dữ liệu thống kê
-    stats: {
-      views: { type: Number, default: 0 },
-      rating: { type: Number, default: 0 },
-      totalReviews: { type: Number, default: 0 },
-    },
-
     // ❤️ Theo dõi
     followers: [
       {
@@ -94,10 +87,6 @@ const ShopSchema = new mongoose.Schema(
 
 // 🔤 Tạo slug cho tên shop & danh mục
 ShopSchema.pre("save", function (next) {
-  if (this.isModified("name")) {
-    this.slug = removeVietnameseTones(this.name);
-  }
-
   if (this.isModified("categories")) {
     this.categories = this.categories.map((cat) => ({
       ...cat,

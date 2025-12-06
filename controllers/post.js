@@ -1,12 +1,13 @@
 const postModel = require("../models/postModel");
+const groupModel = require("../models/groupModel");
 const commentModel = require("../models/commentModel");
 const fs = require("fs");
 const path = require("path");
 const FormData = require("form-data");
 const axios = require("axios");
 const {
-    createAndSendNotificationForFriend,
-    sendNotificationToUser,
+    sendNotification,
+  sendNotificationToFriends,
 } = require("./notification");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 
@@ -32,6 +33,20 @@ const createPost = async (req, res) => {
             return res
                 .status(400)
                 .json({ success: false, message: "Loại bài đăng không hợp lệ." });
+        }
+        if (postedByType === "Group"){
+            const group = await groupModel.findById(postedById);
+            if (!group) {
+                return res
+                    .status(404)
+                    .json({ success: false, message: "Nhóm không tồn tại." });
+            }
+            if (group.settings.allowMemberPost === false) {
+                return res.status(403).json({
+                    success: false,
+                    message: "Thành viên không được phép đăng bài trong nhóm này.",
+                });
+            }
         }
 
         // ✅ Gửi sang Flask AI kiểm duyệt (nếu có)
@@ -87,11 +102,9 @@ const createPost = async (req, res) => {
 
         // ✅ Gửi thông báo cho bạn bè nếu là bài của User
         if (postedByType === "User") {
-            await createAndSendNotificationForFriend(
-                author,
-                "new_post",
-                populatedPost._id
-            );
+            await sendNotificationToFriends(author, "new_post", {
+                postId: newPost._id,
+            })
         }
 
         return res.status(201).json({
@@ -365,12 +378,10 @@ const addComment = async (req, res) => {
 
         // 🔔 Gửi thông báo cho chủ bài viết
         if (post.author.toString() !== userId.toString()) {
-            await sendNotificationToUser(
-                post.author.toString(),
-                userId,
-                "comment_post",
-                postId
-            );
+            await sendNotification([post.author], userId, "comment_post", {
+                postId: post._id,
+                commentId: newComment._id,
+            });
         }
 
         return res.status(201).json({
@@ -475,7 +486,7 @@ const getCommentsByPost = async (req, res) => {
             })
             .lean();
 
-        const commentMap = {};
+        const commentMap = {};  
         comments.forEach((c) => {
             c.replies = [];
             commentMap[c._id.toString()] = c;

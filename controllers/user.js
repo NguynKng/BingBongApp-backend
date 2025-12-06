@@ -1,11 +1,11 @@
 const userModel = require("../models/userModel");
 const shopModel = require("../models/shopModel");
-const groupModel = require("../models/groupModel");
 const postModel = require("../models/postModel");
+const groupModel = require("../models/groupModel");
 const commentModel = require("../models/commentModel");
 const reactionModel = require("../models/reactionModel");
 const { removeDiacritics, deleteOldFile } = require("../helper/helper");
-const { sendNotificationToUser } = require("../controllers/notification");
+const { sendNotification } = require("./notification");
 
 const getUserProgress = async (userId) => {
   const user = await userModel.findById(userId).select("createdAt friends");
@@ -14,18 +14,21 @@ const getUserProgress = async (userId) => {
   const comments_count = await commentModel.countDocuments({ user: userId });
 
   const postIds = await postModel.find({ author: userId }).distinct("_id");
-  const likes_received = await reactionModel.countDocuments({ post: { $in: postIds } });
+  const likes_received = await reactionModel.countDocuments({
+    post: { $in: postIds },
+  });
   const friends_count = user.friends.length;
 
-  const account_age =
-    Math.floor((Date.now() - user.createdAt) / (1000 * 60 * 60 * 24));
+  const account_age = Math.floor(
+    (Date.now() - user.createdAt) / (1000 * 60 * 60 * 24)
+  );
 
   return {
     posts_count,
     comments_count,
     likes_received,
     friends_count,
-    account_age
+    account_age,
   };
 };
 
@@ -57,6 +60,13 @@ const updateUserInfo = async (req, res) => {
     const newUpdatedUser = await userModel
       .findById(userId)
       .select("-password")
+      .populate({
+        path: "badgeInventory",
+        populate: {
+          path: "badgeId",
+          select: "name tier description",
+        },
+      })
       .populate({
         path: "friends",
         select: "fullName avatar slug", // chỉ lấy các field cần thiết
@@ -295,9 +305,9 @@ const getUserProfileBySlug = async (req, res) => {
       .populate({
         path: "badgeInventory",
         populate: {
-            path: "badgeId",
-            select: "name tier description",
-        }
+          path: "badgeId",
+          select: "name tier description",
+        },
       })
       .populate({
         path: "friends",
@@ -316,7 +326,7 @@ const getUserProfileBySlug = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      user,
+      data: user,
     });
   } catch (error) {
     console.error("Get user profile error:", error);
@@ -391,7 +401,9 @@ const sendFriendRequest = async (req, res) => {
     const updatedSender = await userModel
       .findById(senderId)
       .select("-password");
-    await sendNotificationToUser(receiverId, senderId, "friend_request");
+    await sendNotification([receiverId], senderId, "friend_request", {
+      userId: senderId,
+    });
 
     return res.status(200).json({
       success: true,
@@ -474,7 +486,9 @@ const acceptFriendRequest = async (req, res) => {
     const updatedReceiver = await userModel
       .findById(receiverId)
       .select("-password");
-    await sendNotificationToUser(senderId, receiverId, "accepted_request");
+    await sendNotification([senderId], receiverId, "accepted_request", {
+      userId: receiverId,
+    });
 
     return res.status(200).json({
       success: true,
@@ -639,6 +653,152 @@ const getUserStats = async (req, res) => {
   }
 };
 
+const addUserRingtone = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { name } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res
+        .status(400)
+        .json({ success: false, message: "File mp3 is required" });
+    }
+
+    const url = `/uploads/ringtones/${file.filename}`;
+
+    const user = await userModel.findById(userId);
+
+    const newRingtone = {
+      name: name || file.originalname,
+      url,
+    };
+
+    user.ringtones.push(newRingtone);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Ringtone added successfully",
+      data: newRingtone,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const renameUserRingtone = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { ringtoneId } = req.params;
+        const { name } = req.body;
+        const user = await userModel.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
+        }
+
+        const ringtone = user.ringtones.id(ringtoneId);
+        if (!ringtone) {
+            return res.status(404).json({
+                success: false,
+                message: "Ringtone not found",
+            });
+        }
+        ringtone.name = name || ringtone.name;
+        await user.save();
+        return res.status(200).json({
+            success: true,
+            message: "Ringtone renamed successfully",
+            data: ringtone,
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: err.message });
+    }
+}
+
+const deleteUserRingtone = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { ringtoneId } = req.params;
+
+    const user = await userModel.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Tìm ringtone theo id trong mảng
+    const ringtone = user.ringtones.id(ringtoneId);
+
+    if (!ringtone) {
+      return res.status(404).json({
+        success: false,
+        message: "Ringtone not found",
+      });
+    }
+
+    const oldFileUrl = ringtone.url; // lưu URL trước khi xoá
+
+    // Nếu ringtone đang active → clear active
+    if (String(user.activeRingtone) === String(ringtoneId)) {
+      user.activeRingtone = null;
+    }
+
+    // Xoá khỏi mảng
+    ringtone.deleteOne(); // cách mới & sạch hơn pull()
+
+    await user.save();
+
+    // Xoá file cũ (không cần await)
+    deleteOldFile(oldFileUrl);
+
+    return res.status(200).json({
+      success: true,
+      message: "Ringtone deleted successfully",
+      data: ringtoneId,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: err.message,
+    });
+  }
+};
+
+const setActiveRingtone = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { ringtoneId } = req.params;
+
+    const user = await userModel.findById(userId);
+    // kiểm tra ringtone có tồn tại không
+    const ringtone = user.ringtones.id(ringtoneId);
+    if (!ringtone) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Ringtone not found" });
+    }
+
+    user.activeRingtone = ringtoneId;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Ringtone set as active",
+      data: ringtoneId,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   setAvatar,
   setCoverPhoto,
@@ -655,4 +815,9 @@ module.exports = {
   getUserProfileBySlug,
   getUserStats,
   getUserProgress,
+  addUserRingtone,
+  deleteUserRingtone,
+  setActiveRingtone,
+    renameUserRingtone,
 };
+

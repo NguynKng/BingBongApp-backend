@@ -2,95 +2,84 @@ const UserModel = require("../models/userModel");
 const Notification = require("../models/notificationModel");
 const { emitToUser } = require("../sockets/chatSocket");
 
-const sendNotificationToUser = async (
-  targetUserId,
-  actorId,
-  type,
-  postId = null
-) => {
+const sendNotification = async (userIds, actorId, type, data = {}) => {
+  if (!userIds) return;
+
+  // Convert thành array
+  const receivers = Array.isArray(userIds) ? userIds : [userIds];
+
+  // Lấy actor 1 lần
   const actor = await UserModel.findById(actorId).select(
     "fullName avatar slug"
   );
   if (!actor) throw new Error("Actor not found");
 
-  const notification = new Notification({
-    user: targetUserId,
+  const content = getNotificationContent(type);
+
+  // Build documents
+  const docs = receivers.map((uid) => ({
+    user: uid,
     actor: actorId,
     type,
-    post: postId,
-    content: getNotificationContent(type),
-    createdAt: new Date(),
-  });
+    content,
+    data,
+  }));
 
-  await notification.save();
+  // Insert 1 lần cho tất cả → NHANH
+  const inserted = await Notification.insertMany(docs);
 
-  // Populate actor sau khi save
-  const populatedNotification = await Notification.findById(notification._id)
+  // Populate 1 lần
+  const populated = await Notification.find({
+    _id: { $in: inserted.map((n) => n._id) },
+  })
     .populate("actor", "fullName avatar slug")
     .lean();
 
-  //   const io = getSocketInstance();
-  //   io.to(targetUserId).emit("new_notification", {
-  //     notification: populatedNotification,
-  //   });
-  emitToUser(targetUserId, "new_notification", {
-    notification: populatedNotification,
+  // Emit socket cho từng user
+  populated.forEach((notif) => {
+    emitToUser(notif.user.toString(), "new_notification", {
+      notification: notif,
+    });
   });
+
+  return populated;
 };
 
-const createAndSendNotificationForFriend = async (
-  actorId,
-  type,
-  postId = null
-) => {
+/**
+ * Gửi thông báo cho tất cả bạn bè khi user đăng bài
+ */
+const sendNotificationToFriends = async (actorId, type, data) => {
   const user = await UserModel.findById(actorId).select("friends");
-  if (!user) {
-    throw new Error("User not found");
-  }
-  const notificationsToSave = [];
-  for (const friendId of user.friends) {
-    if (friendId.toString() === actorId.toString()) continue;
+  if (!user) throw new Error("User not found");
 
-    const notification = new Notification({
-      user: friendId,
-      actor: actorId,
-      type,
-      post: postId,
-      content: getNotificationContent(type),
-      createdAt: new Date(),
-    });
+  const friendIds = user.friends.filter(
+    (id) => id.toString() !== actorId.toString()
+  );
 
-    const populatedNotification = await notification.populate(
-      "actor",
-      "fullName avatar slug"
-    );
-
-    // const io = getSocketInstance();
-    // io.to(friendId.toString()).emit("new_notification", {
-    //   notification: populatedNotification,
-    // });
-    emitToUser(friendId.toString(), "new_notification", {
-      notification: populatedNotification,
-    });
-
-    notificationsToSave.push(notification.save());
-  }
-
-  await Promise.all(notificationsToSave);
+  return sendNotification(friendIds, actorId, type, data);
 };
 
+/**
+ * Nội dung thông báo
+ */
 const getNotificationContent = (type) => {
   switch (type) {
     case "react_post":
-      return `đã thả cảm xúc vào bài viết của bạn.`;
+      return `reacted to your post.`;
     case "comment_post":
-      return `đã bình luận về bài viết của bạn.`;
+      return `commented on your post.`;
     case "new_post":
-      return `vừa đăng một bài viết mới.`;
+      return `posted a new status.`;
     case "friend_request":
-      return `đã gửi cho bạn một lời mời kết bạn.`;
+      return `sent you a friend request.`;
     case "accepted_request":
-      return `đã chấp nhận lời mời kết bạn của bạn.`;
+      return `accepted your friend request.`;
+    case "new_shop_follower":
+      return `started following your shop.`;
+    case "new_order":
+      return `placed a new order.`;
+    case "accepted_order":
+      return `accepted your order.`;
     default:
       return "";
   }
@@ -155,8 +144,8 @@ const markAsAllRead = async (req, res) => {
 };
 
 module.exports = {
-  sendNotificationToUser,
-  createAndSendNotificationForFriend,
+  sendNotification,
+  sendNotificationToFriends,
   getNotification,
   markAsAllRead,
 };

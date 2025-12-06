@@ -126,6 +126,8 @@ const loginUser = async (req, res) => {
         friendRequests: user.friendRequests,
         privacy: user.privacy,
         slug: user.slug,
+        ringtones: user.ringtones,
+        activeRingtone: user.activeRingtone,
       },
     });
   } catch (err) {
@@ -187,6 +189,8 @@ const loginAdmin = async (req, res) => {
         friendRequests: user.friendRequests,
         privacy: user.privacy,
         slug: user.slug,
+        ringtones: user.ringtones,
+        activeRingtone: user.activeRingtone,
       },
     });
   } catch (error) {
@@ -214,6 +218,8 @@ const authCheck = (req, res) => {
         friendRequests: req.user.friendRequests,
         privacy: req.user.privacy,
         slug: req.user.slug,
+        ringtones: req.user.ringtones,
+        activeRingtone: req.user.activeRingtone,
       },
     });
   } catch (error) {

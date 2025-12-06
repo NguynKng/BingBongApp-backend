@@ -41,13 +41,7 @@ const OrderSchema = new mongoose.Schema(
     },
     orderStatus: {
       type: String,
-      enum: [
-        "Pending",
-        "Processing",
-        "Shipping",
-        "Completed",
-        "Cancelled",
-      ],
+      enum: ["Pending", "Processing", "Shipping", "Completed", "Cancelled"],
       default: "Pending",
       required: true,
     },
@@ -56,6 +50,10 @@ const OrderSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
+    confirmedAt: { type: Date, default: null },
+    shippingAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
+    cancelledAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

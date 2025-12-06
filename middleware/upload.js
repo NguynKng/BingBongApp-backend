@@ -78,6 +78,30 @@ const createPostStorage = multer.diskStorage({
   },
 });
 
+const ringtonesStorage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    // Store files in a temporary directory first
+    const uploadPath = path.join(
+      __dirname,
+      "..",
+      "public",
+      "uploads",
+      "ringtones"
+    );
+
+    // Create directory if it doesn't exist
+    ensureDirectoryExists(uploadPath);
+
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename using timestamp + original extension
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, "ringtone-" + uniqueSuffix + ext);
+  },
+});
+
 // Configure storage for creating a post with images
 const imageMessageStorage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -136,6 +160,21 @@ const fileFilter = (req, file, cb) => {
   }
   cb(null, true);
 };
+
+const ringtonesFileFilter = (req, file, cb) => {
+  if (!file.originalname.match(/\.(mp3|wav|ogg|m4a)$/)) {
+    return cb(new Error("Only audio files are allowed!"), false);
+  }
+  cb(null, true);
+};
+
+const uploadRingtone = multer({
+  storage: ringtonesStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB
+  },
+  fileFilter: ringtonesFileFilter,
+}).single("ringtone"); // 'ringtone' is the field name in the form
 
 // Create multer instances
 const uploadAvatar = multer({
@@ -283,11 +322,28 @@ const uploadProductImagesMiddleware = (req, res, next) => {
   });
 };
 
+const uploadRingtoneMiddleware = (req, res, next) => {
+  uploadRingtone(req, res, function (err) {
+    if (err instanceof multer.MulterError) {
+      // A Multer error occurred when uploading
+      return res
+        .status(400)
+        .json({ success: false, message: `Multer error: ${err.message}` });
+    } else if (err) {
+      // An unknown error occurred
+      return res.status(500).json({ success: false, message: err.message });
+    }
+    // Everything went fine
+    next();
+  });
+};
+
 module.exports = {
   uploadAvatarMiddleware,
   uploadCoverPhotoMiddleware,
   uploadOptionalImagesMiddleware,
   uploadImageMessageMiddleware,
   uploadProductImagesMiddleware,
+  uploadRingtoneMiddleware,
   ensureDirectoryExists,
 };

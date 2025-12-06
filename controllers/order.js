@@ -1,6 +1,11 @@
 const orderModel = require("../models/orderModel");
 const cartModel = require("../models/cartModel");
 const productModel = require("../models/productModel");
+const {
+  sendNotification,
+  sendNotificationToFriends,
+} = require("./notification");
+const shopModel = require("../models/shopModel");
 
 const createOrder = async (req, res) => {
   const { _id: userId } = req.user;
@@ -58,6 +63,7 @@ const createOrder = async (req, res) => {
     // 🔹 Duyệt từng shop để tạo đơn hàng riêng
     for (const [shopId, items] of Object.entries(itemsByShop)) {
       const total = items.reduce((sum, item) => sum + item.price, 0);
+      const shop = await shopModel.findById(shopId);
 
       const order = new orderModel({
         shop: shopId,
@@ -89,11 +95,16 @@ const createOrder = async (req, res) => {
 
         await product.save();
       }
+      await sendNotification([shop.owner], userId, "new_order", {
+        orderId: order.orderId,
+        shopSlug: shop.slug,
+        shopName: shop.name,
+        shopAvatar: shop.avatar,
+      });
     }
 
     // 🔹 Xóa giỏ hàng sau khi tạo đơn
     await cartModel.deleteOne({ _id: cart._id });
-    console.log("✅ createOrder Success:", createdOrders);
 
     return res.status(201).json({
       success: true,
@@ -164,9 +175,9 @@ const getOrderById = async (req, res) => {
   }
 };
 
-const confirmOrder = async (req, res) => {
-  const { orderId } = req.params;
+const updateOrderStatus = async (req, res) => {
   const { _id: userId } = req.user;
+  const { orderId, status } = req.body;
   try {
     const order = await orderModel.findOne({ orderId }).populate("shop");
     if (!order) {
@@ -178,19 +189,81 @@ const confirmOrder = async (req, res) => {
     if (!isShopOwner) {
       return res.status(403).json({
         success: false,
-        message: "You are not authorized to confirm this order.",
+        message: "You are not authorized to update this order.",
       });
     }
-    order.orderStatus = "Completed";
-    await order.save();
+    const updateData = { orderStatus: status };
+    if (status === "Processing") updateData.confirmedAt = new Date();
+    if (status === "Shipping") updateData.shippingAt = new Date();
+    if (status === "Completed") updateData.completedAt = new Date();
+    if (status === "Cancelled") updateData.cancelledAt = new Date();
+
+    const newStatusOrder = await orderModel
+      .findOneAndUpdate({ orderId }, updateData, {
+        new: true,
+      })
+      .populate("shop")
+      .populate("orderBy")
+      .populate("products.product");
     return res
       .status(200)
-      .json({ success: true, message: "Order confirmed successfully." });
+      .json({
+        success: true,
+        message: "Order updated successfully.",
+        data: newStatusOrder,
+      });
   } catch (error) {
-    console.error("❌ confirmOrder Error:", error);
+    console.error("❌ updateOrderStatus Error:", error);
     return res
       .status(500)
-      .json({ success: false, message: "Error confirming order." });
+      .json({ success: false, message: "Error updating order status." });
+  }
+};
+
+const cancelOrder = async (req, res) => {
+  const { orderId } = req.body;
+  const { _id: userId } = req.user;
+
+  try {
+    const order = await orderModel.findOne({ orderId });
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
+    }
+
+    // Check owner
+    if (order.orderBy.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to cancel this order.",
+      });
+    }
+
+    // Check status
+    if (order.orderStatus === "Shipping") {
+      return res.status(400).json({
+        success: false,
+        message: "Your order is being shipped and cannot be canceled.",
+      });
+    }
+
+    // Update status -> canceled
+    order.orderStatus = "Cancelled";
+    order.cancelledAt = new Date();
+    await order.save();
+
+    return res.json({
+      success: true,
+      message: "Order has been successfully canceled.",
+    });
+  } catch (error) {
+    console.error("Cancel order error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
   }
 };
 
@@ -199,5 +272,6 @@ module.exports = {
   getUserOrders,
   getShopOrders,
   getOrderById,
-  confirmOrder,
+  updateOrderStatus,
+  cancelOrder,
 };
