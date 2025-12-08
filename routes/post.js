@@ -9,6 +9,7 @@ const {
   addComment,
   getCommentsByPost,
   addReply,
+  markPostAsViewed,
 } = require("../controllers/post");
 const { protect } = require("../middleware/auth");
 const { uploadOptionalImagesMiddleware } = require("../middleware/upload");
@@ -17,12 +18,9 @@ const { reactToPost } = require("../controllers/reaction");
 // Create a new post (with or without images)
 router.post("/", protect, uploadOptionalImagesMiddleware, createPost);
 
-// Get user's personalized feed
-//router.get('/feed', protect, getFeed);
-
 // Get all posts (with pagination)
 router.get("/", protect, getPosts);
-
+router.post("/mark-viewed/:postId", protect, markPostAsViewed);
 // Get posts by specific user
 router.get("/by/:type/:id", protect, getPostsByOwner);
 

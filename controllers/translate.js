@@ -1,5 +1,4 @@
 const { translate } = require("@vitalets/google-translate-api");
-const userModel = require("../models/userModel");
 
 const translateText = async (text, to) => {
   try {

@@ -69,6 +69,7 @@ const UserSchema = new mongoose.Schema(
     // Sở thích & kỹ năng
     skills: [{ type: String, trim: true }],
     interests: [{ type: String, trim: true }],
+    viewedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: "Post" }],
 
     // 👥 Quan hệ xã hội
     friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

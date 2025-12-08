@@ -125,7 +125,6 @@ const addBadge = async (req, res) => {
         { name: "Post Champion", description: "Created 5000 posts.", tier: "Challenger", condition: { type: "posts_count", operator: ">=", value: 5000 } },
     ];
 
-
     try {
         await Badge.insertMany(badges);
         res.status(201).json({ message: "Badges added successfully" });

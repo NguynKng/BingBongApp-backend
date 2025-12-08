@@ -10,8 +10,8 @@ const getTrendingMovie = async (req, res) => {
     const shuffled = data.results.sort(() => 0.5 - Math.random());
 
     // Lấy 5 phim đầu tiên
-    const randomFive = shuffled.slice(0, 20);
-    return res.status(200).json({ content: randomFive, success: true });
+    const randomTen = shuffled.slice(0, 10);
+    return res.status(200).json({ content: randomTen, success: true });
   } catch (error) {
     console.error("Error fetching trending movies:", error.message);
     return res

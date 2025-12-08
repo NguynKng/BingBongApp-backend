@@ -618,7 +618,7 @@ const getFriendSuggestions = async (req, res) => {
         _id: { $nin: excludeIds },
         block: false,
       })
-      .select("fullName avatar friends slug")
+      .select("fullName avatar friends slug friendRequests")
       .limit(10);
 
     suggestions = suggestions.map((user) => {
