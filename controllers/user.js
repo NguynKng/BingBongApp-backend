@@ -6,6 +6,7 @@ const commentModel = require("../models/commentModel");
 const reactionModel = require("../models/reactionModel");
 const { removeDiacritics, deleteOldFile } = require("../helper/helper");
 const { sendNotification } = require("./notification");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../services/cloudinary/upload");
 
 const getUserProgress = async (userId) => {
   const user = await userModel.findById(userId).select("createdAt friends");
@@ -94,13 +95,13 @@ const setAvatar = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No file uploaded" });
 
-    const fileName = req.file.filename;
-    const avatarPath = `/uploads/avatar/${fileName}`;
     const isDefaultAvatar = (path) => {
-      return path === "/images/default-avatar/user.png";
+      return path === "default-avatar";
     };
 
     let oldAvatar;
+    const result = await uploadToCloudinary(req.file.buffer, "avatar");
+    const newImagePublicId = result.public_id;
 
     switch (type) {
       case "User":
@@ -113,7 +114,7 @@ const setAvatar = async (req, res) => {
         await userModel
           .findByIdAndUpdate(
             req.user._id,
-            { avatar: avatarPath },
+            { avatar: newImagePublicId },
             { new: true }
           )
           .select("-password");
@@ -128,7 +129,7 @@ const setAvatar = async (req, res) => {
         oldAvatar = shop.avatar;
         await shopModel.findByIdAndUpdate(
           id,
-          { avatar: avatarPath },
+          { avatar: newImagePublicId },
           { new: true }
         );
         break;
@@ -142,7 +143,7 @@ const setAvatar = async (req, res) => {
         oldAvatar = group.avatar;
         await groupModel.findByIdAndUpdate(
           id,
-          { avatar: avatarPath },
+          { avatar: newImagePublicId },
           { new: true }
         );
         break;
@@ -155,13 +156,13 @@ const setAvatar = async (req, res) => {
 
     // ✅ Xóa ảnh cũ nếu không phải ảnh mặc định
     if (!isDefaultAvatar(oldAvatar)) {
-      deleteOldFile(oldAvatar);
+        await deleteFromCloudinary(oldAvatar);
     }
 
     return res.status(200).json({
       success: true,
       message: `${type} avatar updated successfully`,
-      data: avatarPath,
+      data: newImagePublicId,
     });
   } catch (error) {
     console.error("Set avatar error:", error);
@@ -180,11 +181,13 @@ const setCoverPhoto = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No file uploaded" });
 
-    const fileName = req.file.filename;
-    const coverPhotoPath = `/uploads/cover_photo/${fileName}`;
+
     const isDefaultCoverPhoto = (path) => {
-      return path === "/images/default-avatar/background-gray.avif";
+      return path === "background-gray-default";
     };
+
+    const result = await uploadToCloudinary(req.file.buffer, "cover");
+    const newImagePublicId = result.public_id;
 
     let oldCover;
 
@@ -199,7 +202,7 @@ const setCoverPhoto = async (req, res) => {
         await userModel
           .findByIdAndUpdate(
             req.user._id,
-            { coverPhoto: coverPhotoPath },
+            { coverPhoto: newImagePublicId },
             { new: true }
           )
           .select("-password");
@@ -214,7 +217,7 @@ const setCoverPhoto = async (req, res) => {
         oldCover = shop.coverPhoto;
         await shopModel.findByIdAndUpdate(
           id,
-          { coverPhoto: coverPhotoPath },
+          { coverPhoto: newImagePublicId },
           { new: true }
         );
         break;
@@ -228,7 +231,7 @@ const setCoverPhoto = async (req, res) => {
         oldCover = group.coverPhoto;
         await groupModel.findByIdAndUpdate(
           id,
-          { coverPhoto: coverPhotoPath },
+          { coverPhoto: newImagePublicId },
           { new: true }
         );
         break;
@@ -241,13 +244,13 @@ const setCoverPhoto = async (req, res) => {
 
     // ✅ Xóa ảnh cũ nếu không phải mặc định
     if (!isDefaultCoverPhoto(oldCover)) {
-      deleteOldFile(oldCover);
+      await deleteFromCloudinary(oldCover);
     }
 
     return res.status(200).json({
       success: true,
       message: `${type} cover photo updated successfully`,
-      data: coverPhotoPath,
+      data: newImagePublicId,
     });
   } catch (error) {
     console.error("Set cover photo error:", error);
@@ -665,13 +668,14 @@ const addUserRingtone = async (req, res) => {
         .json({ success: false, message: "File mp3 is required" });
     }
 
-    const url = `/uploads/ringtones/${file.filename}`;
+    const uploaded = await uploadToCloudinary(file.buffer, "ringtone");
+    const publicId = uploaded.public_id;
 
     const user = await userModel.findById(userId);
 
     const newRingtone = {
       name: name || file.originalname,
-      url,
+      url: publicId,
     };
 
     user.ringtones.push(newRingtone);
@@ -756,8 +760,7 @@ const deleteUserRingtone = async (req, res) => {
 
     await user.save();
 
-    // Xoá file cũ (không cần await)
-    deleteOldFile(oldFileUrl);
+    await deleteFromCloudinary(oldFileUrl);
 
     return res.status(200).json({
       success: true,

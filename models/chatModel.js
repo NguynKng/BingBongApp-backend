@@ -30,7 +30,7 @@ const ChatSchema = new mongoose.Schema(
 
     avatar: {
       type: String,
-      default: "/images/default-avatar/group-chat.png",
+      default: "group-chat",
     },
 
     lastMessage: {

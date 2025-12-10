@@ -66,10 +66,10 @@ const ShopSchema = new mongoose.Schema(
     ],
 
     // 🖼️ Hình ảnh
-    avatar: { type: String, default: "/images/default-avatar/user.png" },
+    avatar: { type: String, default: "default-avatar" },
     coverPhoto: {
       type: String,
-      default: "/images/default-avatar/background-gray.avif",
+      default: "background-gray-default",
     },
 
     // 📍 Vị trí (nếu sau này có map)

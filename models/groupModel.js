@@ -17,12 +17,12 @@ const GroupSchema = new Schema(
 
     avatar: {
       type: String, // URL file
-      default: "/images/default-avatar/user.png",
+      default: "default-avatar",
     },
 
     coverPhoto: {
       type: String, // URL file
-      default: "/images/default-avatar/background-gray.avif",
+      default: "background-gray-default",
     },
 
     slug: {

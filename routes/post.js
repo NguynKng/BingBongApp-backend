@@ -12,12 +12,11 @@ const {
   markPostAsViewed,
 } = require("../controllers/post");
 const { protect } = require("../middleware/auth");
-const { uploadOptionalImagesMiddleware } = require("../middleware/upload");
+const { uploadOptionalPostImagesMiddleware } = require("../middleware/upload");
 const { reactToPost } = require("../controllers/reaction");
 
 // Create a new post (with or without images)
-router.post("/", protect, uploadOptionalImagesMiddleware, createPost);
-
+router.post("/", protect, uploadOptionalPostImagesMiddleware, createPost);
 // Get all posts (with pagination)
 router.get("/", protect, getPosts);
 router.post("/mark-viewed/:postId", protect, markPostAsViewed);

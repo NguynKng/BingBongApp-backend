@@ -32,6 +32,7 @@ function addRoomSocket(roomId, socketId) {
   if (!rooms[roomId]) rooms[roomId] = new Set();
   rooms[roomId].add(socketId);
 }
+
 function removeRoomSocket(roomId, socketId) {
   if (!rooms[roomId]) return;
   rooms[roomId].delete(socketId);

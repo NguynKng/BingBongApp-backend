@@ -2,6 +2,7 @@ const Product = require("../models/productModel");
 const Shop = require("../models/shopModel");
 const path = require("path");
 const fs = require("fs");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../services/cloudinary/upload");
 
 const isShopOwner = async (userId, shopId) => {
   const shop = await Shop.findById(shopId);
@@ -113,19 +114,37 @@ const createProduct = async (req, res) => {
       });
     }
 
-    const mainImagePaths = mainImages.map(
-      (file) => `/uploads/products/${file.filename}`
-    );
+    // Upload main images
+    const uploadedMainImages = [];
+    for (let img of mainImages) {
+      const result = await uploadToCloudinary(img.buffer, "product");
+      const imagePublicId = result.public_id;
+      uploadedMainImages.push(imagePublicId);
+    }
 
-    const updatedVariants = parsedVariants.map((variant, index) => {
-      const imageFile = variantImages[index];
-      return {
+    // Upload variant images theo index
+    const updatedVariants = [];
+    for (let i = 0; i < parsedVariants.length; i++) {
+      const variant = parsedVariants[i];
+      const variantImgFile = variantImages[i];
+
+      let uploadedImg = null;
+      if (variantImgFile) {
+        const cloud = await uploadToCloudinary(
+          variantImgFile.buffer,
+          "product"
+        );
+        const imagePublicId = cloud.public_id;
+        uploadedImg = imagePublicId;
+      }
+
+      updatedVariants.push({
         ...variant,
         price: Number(variant.price),
         stock: Number(variant.stock || 0),
-        image: imageFile ? `/uploads/products/${imageFile.filename}` : null,
-      };
-    });
+        image: uploadedImg,
+      });
+    }
 
     // 6️⃣ Tạo product mới
     const newProduct = new Product({
@@ -136,7 +155,7 @@ const createProduct = async (req, res) => {
       basePrice: Number(basePrice),
       discount: Number(discount || 0),
       brand,
-      images: mainImagePaths,
+      images: uploadedMainImages,
       variants: updatedVariants,
       status,
     });
@@ -171,32 +190,17 @@ const updateProductById = async (req, res) => {
       shop,
       status,
       variants,
-      deletedImagePath, // client gửi danh sách ảnh đã xoá
+      deletedImagePath, // = danh sách publicId cần xóa
     } = req.body;
 
-    // 1️⃣ Kiểm tra các trường bắt buộc
-    if (
-      !name ||
-      !category ||
-      !basePrice ||
-      !shop ||
-      !description ||
-      variants.length == 0
-    ) {
+    // 1️⃣ Validate cơ bản
+    if (!name || !category || !basePrice || !shop || !description) {
       return res.status(400).json({
         success: false,
         message: "Vui lòng điền đầy đủ thông tin sản phẩm",
       });
     }
 
-    if (!shop) {
-      return res.status(400).json({
-        success: false,
-        message: "Thiếu ID cửa hàng.",
-      });
-    }
-
-    // 🔐 Kiểm tra quyền sở hữu shop
     if (!(await isShopOwner(req.user._id, shop))) {
       return res.status(403).json({
         success: false,
@@ -204,7 +208,7 @@ const updateProductById = async (req, res) => {
       });
     }
 
-    // ✅ Tìm product
+    // 2️⃣ Tìm product
     const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({
@@ -213,118 +217,89 @@ const updateProductById = async (req, res) => {
       });
     }
 
-    // ✅ Kiểm tra trùng tên trong cùng shop
-    if (name.trim() !== product.name) {
-      const existed = await Product.findOne({ shop, name: name.trim() });
-      if (existed) {
-        return res.status(409).json({
-          success: false,
-          message: "Tên sản phẩm đã tồn tại trong shop này.",
-        });
-      }
-    }
+    // 3️⃣ Parse variants
+    let parsedVariants =
+      typeof variants === "string" ? JSON.parse(variants) : variants;
 
-    // ✅ Parse dữ liệu variant
-    let parsedVariants = [];
-    if (typeof variants === "string") {
+    // 4️⃣ Parse danh sách ảnh bị xoá
+    const deletedPublicIds =
+      typeof deletedImagePath === "string"
+        ? JSON.parse(deletedImagePath)
+        : deletedImagePath || [];
+
+    // 5️⃣ Xoá ảnh trên Cloudinary
+    for (const pubId of deletedPublicIds) {
       try {
-        parsedVariants = JSON.parse(variants);
-      } catch {
-        return res.status(400).json({
-          success: false,
-          message: "Variants không đúng định dạng JSON.",
-        });
-      }
-    } else if (Array.isArray(variants)) {
-      parsedVariants = variants;
-    }
-
-    // 3️⃣ Validate từng variant
-    for (let i = 0; i < parsedVariants.length; i++) {
-      const v = parsedVariants[i];
-      if (!v.name || !v.price || !v.stock) {
-        return res.status(400).json({
-          success: false,
-          message: `Vui lòng điền đầy đủ thông tin cho variant thứ ${i + 1}.`,
-        });
+        await deleteFromCloudinary(pubId);
+      } catch (err) {
+        console.log("⚠️ Lỗi khi xoá ảnh:", pubId);
       }
     }
 
-    // ✅ Parse danh sách ảnh bị xoá
-    let deletedPaths = [];
-    if (typeof deletedImagePath === "string") {
-      deletedPaths = JSON.parse(deletedImagePath);
-    } else if (Array.isArray(deletedImagePath)) {
-      deletedPaths = deletedImagePath;
-    }
-
-    // ✅ Lấy file mới upload
+    // 6️⃣ Lấy file upload mới
     const newMainFiles = req.files?.mainImages || [];
     const newVariantFiles = req.files?.variantImages || [];
 
-    // ✅ Chuyển file ảnh chính mới thành path
-    const newMainImagePaths = newMainFiles.map(
-      (f) => `/uploads/products/${f.filename}`
-    );
+    // 7️⃣ Upload ảnh chính mới
+    const uploadedMainImages = [];
+    for (let file of newMainFiles) {
+      const uploaded = await uploadToCloudinary(file.buffer, "product");
+      uploadedMainImages.push(uploaded.public_id);
+    }
 
-    // ✅ Xoá ảnh chính bị xoá khỏi folder
-    deletedPaths.forEach((img) => {
-      const filePath = path.join(__dirname, `../public${img}`);
-      console.log("File bi xoa", filePath);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    });
-
-    // ✅ Ảnh chính còn giữ lại (trừ những ảnh bị xoá)
+    // 8️⃣ Lọc ảnh chính còn giữ lại
     const keptMainImages = product.images.filter(
-      (img) => !deletedPaths.includes(img)
+      (img) => !deletedPublicIds.includes(img)
     );
 
-    // ✅ Danh sách ảnh chính cuối cùng
-    const finalMainImages = [...keptMainImages, ...newMainImagePaths];
+    const finalMainImages = [...keptMainImages, ...uploadedMainImages];
 
-    const updatedVariants = parsedVariants.map((variant, index) => {
-      const newFile = newVariantFiles[variant.imageIndex]; // client gửi newImageIndex nếu có upload ảnh mới
-      let finalImage = variant.image ? variant.image.path : null;
+    // 9️⃣ Xử lý variants + upload ảnh variant mới
+    const finalVariants = await Promise.all(
+      parsedVariants.map(async (variant, index) => {
+        let finalImage = product.variants[index]?.image || null;
+        const newFile = newVariantFiles[index];
 
-      if (newFile) {
-        // Nếu có upload mới → thay bằng ảnh mới
-        finalImage = `/uploads/products/${newFile.filename}`;
-      } else if (variant.image === null) {
-        // Nếu xoá ảnh ở client
-        if (product.variants[index]?.image) {
-          const oldPath = path.join(
-            __dirname,
-            `../public${product.variants[index].image.path}`
-          );
-          if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+        // Nếu bị xoá
+        if (finalImage) {
+            await deleteFromCloudinary(finalImage);
+            finalImage = null;
         }
-        finalImage = null;
-      }
 
-      return {
-        ...variant,
-        image: finalImage,
-        price: Number(variant.price),
-        stock: Number(variant.stock || 0),
-      };
-    });
+        // Nếu có upload ảnh mới
+        if (newFile) {
+          const uploaded = await uploadToCloudinary(
+            newFile.buffer,
+            "product"
+          );
+          finalImage = uploaded.public_id;
+        }
 
-    // ✅ Cập nhật product
-    product.name = name ?? product.name;
-    product.description = description ?? product.description;
-    product.category = category ?? product.category;
-    product.basePrice = basePrice ?? product.basePrice;
-    product.discount = discount ?? product.discount;
-    product.brand = brand ?? product.brand;
+        return {
+          ...variant,
+          price: Number(variant.price),
+          stock: Number(variant.stock),
+          image: finalImage,
+        };
+      })
+    );
+
+    // 🔟 Update Product
+    product.name = name;
+    product.description = description;
+    product.category = category;
+    product.basePrice = Number(basePrice);
+    product.discount = Number(discount || 0);
+    product.brand = brand;
     product.images = finalMainImages;
-    product.variants = updatedVariants;
-    product.status = status ?? product.status;
+    product.variants = finalVariants;
+    product.status = status;
 
     await product.save();
 
     res.status(200).json({
       success: true,
-      message: "Cập nhật sản phẩm thành công.",
+      message: "Cập nhật sản phẩm thành công",
       product,
     });
   } catch (error) {

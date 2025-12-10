@@ -1,15 +1,11 @@
 const Message = require("../models/messageModel");
 const { getAIResponse } = require("../services/gemini/client");
-const { getSocketInstance } = require("../sockets/socketInstance");
 const { userSocketMap } = require("../sockets/chatSocket");
-const User = require("../models/userModel");
-const fs = require("fs");
-const path = require("path");
-const { ensureDirectoryExists } = require("../middleware/upload");
 const axios = require("axios");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 const { emitToUser } = require("../sockets/chatSocket");
 const Chat = require("../models/chatModel");
+const { uploadToCloudinary } = require("../services/cloudinary/upload");
 
 const generateAiResponse = async (req, res) => {
   const { prompt } = req.body;
@@ -40,12 +36,11 @@ const sendMessage = async (req, res) => {
     const mediaPaths = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const tempPath = file.path;
-        if (fs.existsSync(tempPath)) {
-          mediaPaths.push(
-            `/uploads/messages-images/${path.basename(tempPath)}`
-          );
-        }
+        const uploaded = await uploadToCloudinary(
+          file.buffer,
+          "message"
+        );
+        mediaPaths.push(uploaded.public_id);
       }
     }
 

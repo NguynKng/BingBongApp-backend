@@ -1,349 +1,87 @@
+// middleware/upload.js
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
 
-// Ensure directory exists before storing files
 const ensureDirectoryExists = (directory) => {
   if (!fs.existsSync(directory)) {
     fs.mkdirSync(directory, { recursive: true });
   }
 };
 
-// Configure storage for avatar uploads
-const avatarStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    //const userId = req.user._id;
-    const uploadPath = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "avatar"
-    );
+// memoryStorage: Không lưu file vào disk
+const storage = multer.memoryStorage();
 
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "avatar-" + uniqueSuffix + ext);
-  },
-});
-
-// Configure storage for cover photo uploads
-const coverPhotoStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadPath = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "cover_photo"
-    );
-
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "cover-" + uniqueSuffix + ext);
-  },
-});
-
-// Configure storage for creating a post with images
-const createPostStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    //const userId = req.user._id;
-    // Store files in a temporary directory first
-    const uploadPath = path.join(__dirname, "..", "public", "uploads", "posts");
-
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "post-image-" + uniqueSuffix + ext);
-  },
-});
-
-const ringtonesStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Store files in a temporary directory first
-    const uploadPath = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "ringtones"
-    );
-
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "ringtone-" + uniqueSuffix + ext);
-  },
-});
-
-// Configure storage for creating a post with images
-const imageMessageStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Store files in a temporary directory first
-    const uploadPath = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "messages-images"
-    );
-
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "msg-image-" + uniqueSuffix + ext);
-  },
-});
-
-// Configure storage for creating a product with images
-const productImageStorage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    // Store files in a temporary directory first
-    const uploadPath = path.join(
-      __dirname,
-      "..",
-      "public",
-      "uploads",
-      "products"
-    );
-
-    // Create directory if it doesn't exist
-    ensureDirectoryExists(uploadPath);
-
-    cb(null, uploadPath);
-  },
-  filename: function (req, file, cb) {
-    // Create unique filename using timestamp + original extension
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, "product-" + uniqueSuffix + ext);
-  },
-});
-
-// File filtering
-const fileFilter = (req, file, cb) => {
-  // Accept images only
-  if (!file.originalname.match(/\.(jpg|jpeg|png|gif|jfif|webp)$/)) {
-    return cb(new Error("Only image files are allowed!"), false);
+const imageFilter = (req, file, cb) => {
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp|jfif)$/)) {
+    return cb(new Error("Only image files allowed!"), false);
   }
   cb(null, true);
 };
 
-const ringtonesFileFilter = (req, file, cb) => {
+const audioFilter = (req, file, cb) => {
   if (!file.originalname.match(/\.(mp3|wav|ogg|m4a)$/)) {
-    return cb(new Error("Only audio files are allowed!"), false);
+    return cb(new Error("Only audio files allowed!"), false);
   }
   cb(null, true);
 };
 
-const uploadRingtone = multer({
-  storage: ringtonesStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-  fileFilter: ringtonesFileFilter,
-}).single("ringtone"); // 'ringtone' is the field name in the form
-
-// Create multer instances
+// ---- UPLOAD RULES -----
 const uploadAvatar = multer({
-  storage: avatarStorage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
-  fileFilter: fileFilter,
-}).single("avatar"); // 'avatar' is the field name in the form
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFilter,
+}).single("avatar");
 
 const uploadCoverPhoto = multer({
-  storage: coverPhotoStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: fileFilter,
-}).single("coverPhoto"); // 'coverPhoto' is the field name in the form
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFilter,
+}).single("coverPhoto");
 
-// Create multer instance for optional post images
-const uploadOptionalImages = multer({
-  storage: createPostStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: fileFilter,
+const uploadPostImages = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFilter,
 }).array("images", 10);
 
-const uploadImageMessage = multer({
-  storage: imageMessageStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: fileFilter,
+const uploadChatImages = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFilter,
 }).array("images", 10);
 
 const uploadProductImages = multer({
-  storage: productImageStorage,
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB
-  },
-  fileFilter: fileFilter,
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageFilter,
 }).fields([
   { name: "mainImages", maxCount: 10 },
   { name: "variantImages", maxCount: 50 },
 ]);
 
-// Middleware handler for avatar upload
-const uploadAvatarMiddleware = (req, res, next) => {
-  uploadAvatar(req, res, function (err) {
+const uploadRingtone = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: audioFilter,
+}).single("ringtone");
+
+// ---- WRAPPER -----
+const handleUpload = (uploadFn) => (req, res, next) => {
+  uploadFn(req, res, function (err) {
     if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
+      return res.status(400).json({ success: false, message: err.message });
     } else if (err) {
-      // An unknown error occurred
       return res.status(500).json({ success: false, message: err.message });
     }
-    // Everything went fine
-    next();
-  });
-};
-
-// Middleware handler for cover photo upload
-const uploadCoverPhotoMiddleware = (req, res, next) => {
-  uploadCoverPhoto(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
-    } else if (err) {
-      // An unknown error occurred
-      return res.status(500).json({ success: false, message: err.message });
-    }
-    // Everything went fine
-    next();
-  });
-};
-
-// Middleware handler for optional post images
-const uploadOptionalImagesMiddleware = (req, res, next) => {
-  // Check if the request has files first
-  if (!req.is("multipart/form-data")) {
-    // No files in request, just proceed
-    return next();
-  }
-
-  uploadOptionalImages(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
-    } else if (err) {
-      // An unknown error occurred
-      return res.status(500).json({ success: false, message: err.message });
-    }
-    // Everything went fine
-    next();
-  });
-};
-
-const uploadImageMessageMiddleware = (req, res, next) => {
-  // Check if the request has files first
-  if (!req.is("multipart/form-data")) {
-    // No files in request, just proceed
-    return next();
-  }
-
-  uploadImageMessage(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
-    } else if (err) {
-      // An unknown error occurred
-      return res.status(500).json({ success: false, message: err.message });
-    }
-    // Everything went fine
-    next();
-  });
-};
-
-const uploadProductImagesMiddleware = (req, res, next) => {
-  // Check if the request has files first
-  if (!req.is("multipart/form-data")) {
-    // No files in request, just proceed
-    return next();
-  }
-
-  uploadProductImages(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
-    } else if (err) {
-      // An unknown error occurred
-      return res.status(500).json({ success: false, message: err.message });
-    }
-    // Everything went fine
-    next();
-  });
-};
-
-const uploadRingtoneMiddleware = (req, res, next) => {
-  uploadRingtone(req, res, function (err) {
-    if (err instanceof multer.MulterError) {
-      // A Multer error occurred when uploading
-      return res
-        .status(400)
-        .json({ success: false, message: `Multer error: ${err.message}` });
-    } else if (err) {
-      // An unknown error occurred
-      return res.status(500).json({ success: false, message: err.message });
-    }
-    // Everything went fine
     next();
   });
 };
 
 module.exports = {
-  uploadAvatarMiddleware,
-  uploadCoverPhotoMiddleware,
-  uploadOptionalImagesMiddleware,
-  uploadImageMessageMiddleware,
-  uploadProductImagesMiddleware,
-  uploadRingtoneMiddleware,
+  uploadAvatarMiddleware: handleUpload(uploadAvatar),
+  uploadCoverPhotoMiddleware: handleUpload(uploadCoverPhoto),
+  uploadOptionalPostImagesMiddleware: handleUpload(uploadPostImages),
+  uploadChatImagesMiddleware: handleUpload(uploadChatImages),
+  uploadProductImagesMiddleware: handleUpload(uploadProductImages),
+  uploadRingtoneMiddleware: handleUpload(uploadRingtone),
   ensureDirectoryExists,
 };

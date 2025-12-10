@@ -49,10 +49,10 @@ const UserSchema = new mongoose.Schema(
       default: "Other",
     },
 
-    avatar: { type: String, default: "/images/default-avatar/user.png" },
+    avatar: { type: String, default: "default-avatar" },
     coverPhoto: {
       type: String,
-      default: "/images/default-avatar/background-gray.avif",
+      default: "background-gray-default",
     },
     slug: { type: String, unique: true, trim: true },
     // ======= Thông tin mở rộng =======

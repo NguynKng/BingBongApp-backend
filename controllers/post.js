@@ -12,6 +12,8 @@ const {
   sendNotificationToFriends,
 } = require("./notification");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
+const { CLOUDINARY_FOLDERS } = require("../services/cloudinary/constant");
+const { uploadToCloudinary, cloudinary, deleteManyFromCloudinary } = require("../services/cloudinary/upload");
 
 //
 // 🧩 Tạo bài viết mới
@@ -19,90 +21,96 @@ const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
 const createPost = async (req, res) => {
   try {
     const { content, postedByType, postedById } = req.body;
-    const author = req.user._id; // ✅ Lấy user đăng nhập làm tác giả
+    const author = req.user._id;
 
-    // ✅ Kiểm tra đầu vào
+    // ------------------- Validate -------------------
     if (!content || !postedByType || !postedById) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin bắt buộc: content, postedByType, postedById.",
+        message: "Thiếu thông tin bắt buộc.",
       });
     }
 
-    // ✅ Kiểm tra loại hợp lệ
     const validTypes = ["User", "Shop", "Group"];
     if (!validTypes.includes(postedByType)) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Loại bài đăng không hợp lệ." });
+      return res.status(400).json({
+        success: false,
+        message: "Loại bài đăng không hợp lệ.",
+      });
     }
+
     if (postedByType === "Group") {
       const group = await groupModel.findById(postedById);
       if (!group) {
-        return res
-          .status(404)
-          .json({ success: false, message: "Nhóm không tồn tại." });
+        return res.status(404).json({
+          success: false,
+          message: "Nhóm không tồn tại.",
+        });
       }
-      if (group.settings.allowMemberPost === false) {
+      if (!group.settings.allowMemberPost) {
         return res.status(403).json({
           success: false,
-          message: "Thành viên không được phép đăng bài trong nhóm này.",
+          message: "Bạn không được phép đăng bài trong nhóm này.",
         });
       }
     }
 
-    // ✅ Gửi sang Flask AI kiểm duyệt (nếu có)
-    const formData = new FormData();
-    formData.append("content", content);
+    // ------------------- Gửi dữ liệu sang Flask kiểm duyệt (nếu cần) -------------------
+    // const formData = new FormData();
+    // formData.append("content", content);
 
-    if (req.files?.length) {
-      for (const file of req.files) {
-        const stream = fs.createReadStream(file.path);
-        formData.append("images", stream, {
-          filename: file.originalname,
-          contentType: file.mimetype,
-        });
-      }
-    }
+    // if (req.files?.length) {
+    //   for (const file of req.files) {
+    //     formData.append("images", fs.createReadStream(file.path), {
+    //       filename: file.originalname,
+    //       contentType: file.mimetype,
+    //     });
+    //   }
+    // }
 
     // const flaskResponse = await axios.post(
     //   `${BACKEND_AI_PYTHON_URL}/analyze-post`,
     //   formData,
     //   { headers: formData.getHeaders() }
     // );
-
+    //
     // if (flaskResponse.data.isPostSafeForChild === false) {
     //   return res.status(400).json({
     //     success: false,
-    //     message: "Bài viết chứa nội dung không phù hợp, không thể đăng.",
+    //     message: "Bài viết chứa nội dung không phù hợp.",
     //   });
     // }
 
-    // ✅ Xử lý media paths
-    const mediaPaths = [];
+    // ------------------- Upload ảnh lên Cloudinary -------------------
+    let mediaPublicIds = [];
+
     if (req.files?.length) {
       for (const file of req.files) {
-        const fileName = path.basename(file.path);
-        mediaPaths.push(`/uploads/posts/${fileName}`);
+        const uploaded = await uploadToCloudinary(
+          file.buffer,
+          "post"
+        );
+        mediaPublicIds.push(uploaded.public_id);
       }
     }
 
-    // ✅ Tạo bài viết mới
+    // ------------------- Tạo bài viết -------------------
     const newPost = await postModel.create({
       author,
       postedByType,
       postedById,
       content,
-      media: mediaPaths,
+      media: mediaPublicIds,
     });
 
-    // ✅ Populate bài đăng sau khi tạo
+    // Populate
     const populatedPost = await postModel
       .findById(newPost._id)
       .populate("author", "fullName avatar slug")
-      .populate("postedById", "fullName name avatar coverPhoto slug");
+      .populate("postedById", "fullName name avatar coverPhoto slug")
+      .lean();
 
-    // ✅ Gửi thông báo cho bạn bè nếu là bài của User
+    // ------------------- Notification -------------------
     if (postedByType === "User") {
       await sendNotificationToFriends(author, "new_post", {
         postId: newPost._id,
@@ -515,10 +523,7 @@ const deletePost = async (req, res) => {
 
     // Xoá ảnh khỏi server
     if (post.media?.length) {
-      for (const mediaPath of post.media) {
-        const fullPath = path.join(__dirname, "..", "public", mediaPath);
-        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
-      }
+        await deleteManyFromCloudinary(post.media);
     }
 
     await postModel.findByIdAndDelete(postId);
