@@ -205,13 +205,11 @@ const updateOrderStatus = async (req, res) => {
       .populate("shop")
       .populate("orderBy")
       .populate("products.product");
-    return res
-      .status(200)
-      .json({
-        success: true,
-        message: "Order updated successfully.",
-        data: newStatusOrder,
-      });
+    return res.status(200).json({
+      success: true,
+      message: "Order updated successfully.",
+      data: newStatusOrder,
+    });
   } catch (error) {
     console.error("❌ updateOrderStatus Error:", error);
     return res
@@ -267,11 +265,61 @@ const cancelOrder = async (req, res) => {
   }
 };
 
+const receiveOrder = async (req, res) => {
+  const { orderId } = req.body;
+  const { _id: userId } = req.user;
+  try {
+    const order = await orderModel.findOne({ orderId });
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found." });
+    }
+    // Check owner
+    if (order.orderBy.toString() !== userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this order.",
+      });
+    }
+    // Check status
+    if (order.orderStatus !== "Shipping") {
+      return res.status(400).json({
+        success: false,
+        message: "Only orders in 'Shipping' status can be marked as received.",
+      });
+    }
+    // Update status -> Completed
+    order.orderStatus = "Completed";
+    order.completedAt = new Date();
+    await order.save();
+
+    const newUpdatedOrder = await orderModel
+      .findOne({ orderId })
+      .populate("shop")
+      .populate("orderBy")
+      .populate("products.product");
+    return res.json({
+      data: newUpdatedOrder,
+      success: true,
+      message: "Order has been marked as received.",
+    });
+  } catch (error) {
+    console.error("Receive order error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+};
+
 module.exports = {
   createOrder,
   getUserOrders,
   getShopOrders,
   getOrderById,
   updateOrderStatus,
+  receiveOrder,
   cancelOrder,
 };

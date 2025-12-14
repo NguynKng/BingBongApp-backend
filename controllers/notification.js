@@ -80,6 +80,12 @@ const getNotificationContent = (type) => {
       return `placed a new order.`;
     case "accepted_order":
       return `accepted your order.`;
+    case "group_join_request":
+      return `requested to join your group.`;
+    case "group_new_member":
+      return `joined your group.`;
+    case "accepted_join_request":
+      return `accepted your request to join the group.`;
     default:
       return "";
   }

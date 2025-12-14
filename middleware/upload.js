@@ -24,6 +24,36 @@ const audioFilter = (req, file, cb) => {
   cb(null, true);
 };
 
+const videoFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith('video/')) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only video files allowed!"), false);
+  }
+};
+
+const shortVideoFilter = (req, file, cb) => {
+  // Check if it's video field
+  if (file.fieldname === 'video') {
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only video files allowed for video field!"), false);
+    }
+  }
+  // Check if it's thumbnail field
+  else if (file.fieldname === 'thumbnail') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only image files allowed for thumbnail field!"), false);
+    }
+  }
+  else {
+    cb(new Error("Invalid field name!"), false);
+  }
+};
+
 // ---- UPLOAD RULES -----
 const uploadAvatar = multer({
   storage,
@@ -64,6 +94,21 @@ const uploadRingtone = multer({
   fileFilter: audioFilter,
 }).single("ringtone");
 
+const uploadVideo = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  fileFilter: videoFilter,
+}).single("video");
+
+const uploadShortVideo = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for short videos
+  fileFilter: shortVideoFilter,
+}).fields([
+  { name: "video", maxCount: 1 },
+  { name: "thumbnail", maxCount: 1 },
+]);
+
 // ---- WRAPPER -----
 const handleUpload = (uploadFn) => (req, res, next) => {
   uploadFn(req, res, function (err) {
@@ -83,5 +128,7 @@ module.exports = {
   uploadChatImagesMiddleware: handleUpload(uploadChatImages),
   uploadProductImagesMiddleware: handleUpload(uploadProductImages),
   uploadRingtoneMiddleware: handleUpload(uploadRingtone),
+  uploadVideoMiddleware: handleUpload(uploadVideo),
+  uploadShortVideoMiddleware: handleUpload(uploadShortVideo),
   ensureDirectoryExists,
 };

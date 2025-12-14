@@ -18,5 +18,6 @@ router.use("/group", require("./group"))
 router.use("/product", require("./product"))
 router.use("/cart", require("./cart"))
 router.use("/order", require("./order"))
+router.use("/shorts", require("./short"))
 
 module.exports = router

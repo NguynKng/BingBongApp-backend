@@ -1,6 +1,10 @@
 const Group = require("../models/groupModel");
 const slugify = require("slugify");
 const Chat = require("../models/chatModel");
+const {
+  sendNotification,
+  sendNotificationToFriends,
+} = require("./notification");
 
 // Helper functions
 function isAdminOrMod(group, userId) {
@@ -333,9 +337,15 @@ const joinGroup = async (req, res) => {
         // Send join request
         group.pendingMembers.push(userId);
         await group.save();
+        await sendNotification(group.admins, userId, "group_join_request", {
+          groupId: group._id,
+          groupName: group.name,
+          groupAvatar: group.avatar,
+          groupSlug: group.slug,
+        });
         return res.json({
           success: true,
-          message: "Join request sent",
+          message: "Join request canceled",
           action: "requested",
         });
       }
@@ -348,6 +358,12 @@ const joinGroup = async (req, res) => {
         chat.participants.push(userId);
         await chat.save();
       }
+      await sendNotification(group.admins, userId, "group_new_member", {
+        groupId: group._id,
+        groupName: group.name,
+        groupAvatar: group.avatar,
+        groupSlug: group.slug,
+      });
       return res.json({
         success: true,
         message: "Joined group",
@@ -385,8 +401,15 @@ const approveMember = async (req, res) => {
       chat.participants.push(userId);
       await chat.save();
     }
+    await sendNotification(userId, req.user._id, "accepted_join_request", {
+      groupId: group._id,
+      groupName: group.name,
+      groupAvatar: group.avatar,
+      groupSlug: group.slug,
+    });
     return res.status(200).json({ success: true, message: "Member approved" });
   } catch (err) {
+    console.log(err)
     return res.status(500).json({ success: false, error: err.message });
   }
 };
