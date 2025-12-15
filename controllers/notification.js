@@ -80,12 +80,24 @@ const getNotificationContent = (type) => {
       return `placed a new order.`;
     case "accepted_order":
       return `accepted your order.`;
+    case "shipping_order":
+      return `marked your order as shipping.`;
+    case "received_order":
+      return `indicated they have received your order.`;
+    case "shop_cancelled_order":
+      return `cancelled your order.`;
+    case "user_cancelled_order":
+      return `cancelled their order.`;
     case "group_join_request":
       return `requested to join your group.`;
     case "group_new_member":
       return `joined your group.`;
     case "accepted_join_request":
       return `accepted your request to join the group.`;
+    case "like_short":
+      return `liked your short.`;
+    case "comment_short":
+      return `commented on your short.`;
     default:
       return "";
   }

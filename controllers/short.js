@@ -1,6 +1,10 @@
 const Short = require("../models/shortModel");
 const CommentShort = require("../models/commentShortModel");
 const { uploadToCloudinary } = require("../services/cloudinary/upload");
+const {
+  sendNotification,
+  sendNotificationToFriends,
+} = require("./notification");
 
 // Create Short
 const createShort = async (req, res) => {
@@ -275,6 +279,12 @@ const toggleLikeShort = async (req, res) => {
     } else {
       // Like
       short.likes.push(userId);
+      await sendNotification(
+        [short.user],
+        userId,
+        "like_short",
+        { shortId: short._id }
+      );
     }
 
     await short.save();
@@ -329,6 +339,13 @@ const addComment = async (req, res) => {
     // Increment comments count
     short.commentsCount += 1;
     await short.save();
+
+    await sendNotification(
+      [short.user],
+      userId,
+      "comment_short",
+      { shortId: short._id }
+    );
 
     res.status(201).json({
       success: true,

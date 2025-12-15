@@ -61,7 +61,7 @@ const createPost = async (req, res) => {
 
     // if (req.files?.length) {
     //   for (const file of req.files) {
-    //     formData.append("images", fs.createReadStream(file.path), {
+    //     formData.append("images", file.buffer, {
     //       filename: file.originalname,
     //       contentType: file.mimetype,
     //     });
@@ -73,7 +73,7 @@ const createPost = async (req, res) => {
     //   formData,
     //   { headers: formData.getHeaders() }
     // );
-    //
+    
     // if (flaskResponse.data.isPostSafeForChild === false) {
     //   return res.status(400).json({
     //     success: false,

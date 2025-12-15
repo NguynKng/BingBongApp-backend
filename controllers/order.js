@@ -19,7 +19,7 @@ const createOrder = async (req, res) => {
     });
 
     if (!cart || cart.items.length === 0)
-      return res
+      return res 
         .status(400)
         .json({ success: false, message: "Your cart is empty." });
 
@@ -193,10 +193,23 @@ const updateOrderStatus = async (req, res) => {
       });
     }
     const updateData = { orderStatus: status };
-    if (status === "Processing") updateData.confirmedAt = new Date();
-    if (status === "Shipping") updateData.shippingAt = new Date();
-    if (status === "Completed") updateData.completedAt = new Date();
-    if (status === "Cancelled") updateData.cancelledAt = new Date();
+    let type;
+    if (status === "Processing") {
+      updateData.confirmedAt = new Date();
+      type = "accepted_order";
+    }
+    if (status === "Shipping") {
+      updateData.shippingAt = new Date();
+      type = "shipping_order";
+    }
+    if (status === "Completed") {
+      updateData.completedAt = new Date();
+      type = "received_order";
+    }
+    if (status === "Cancelled") {
+      updateData.cancelledAt = new Date();
+      type = "shop_cancelled_order";
+    }
 
     const newStatusOrder = await orderModel
       .findOneAndUpdate({ orderId }, updateData, {
@@ -205,6 +218,12 @@ const updateOrderStatus = async (req, res) => {
       .populate("shop")
       .populate("orderBy")
       .populate("products.product");
+    await sendNotification([newStatusOrder.orderBy._id], userId, type, {
+      orderId: newStatusOrder.orderId,
+      shopSlug: newStatusOrder.shop.slug,
+      shopName: newStatusOrder.shop.name,
+      shopAvatar: newStatusOrder.shop.avatar,
+    });
     return res.status(200).json({
       success: true,
       message: "Order updated successfully.",
@@ -223,7 +242,7 @@ const cancelOrder = async (req, res) => {
   const { _id: userId } = req.user;
 
   try {
-    const order = await orderModel.findOne({ orderId });
+    const order = await orderModel.findOne({ orderId }).populate("shop");
 
     if (!order) {
       return res
@@ -251,6 +270,15 @@ const cancelOrder = async (req, res) => {
     order.orderStatus = "Cancelled";
     order.cancelledAt = new Date();
     await order.save();
+
+    await sendNotification(
+      [order.shop.owner],
+      userId,
+      "user_cancelled_order",
+      {
+        orderId: order.orderId,
+      }
+    );
 
     return res.json({
       success: true,
@@ -300,6 +328,14 @@ const receiveOrder = async (req, res) => {
       .populate("shop")
       .populate("orderBy")
       .populate("products.product");
+    await sendNotification(
+      [newUpdatedOrder.shop.owner],
+      userId,
+      "received_order",
+      {
+        orderId: newUpdatedOrder.orderId,
+      }
+    );
     return res.json({
       data: newUpdatedOrder,
       success: true,
