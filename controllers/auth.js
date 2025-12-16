@@ -3,6 +3,7 @@ const ResetToken = require("../models/resetToken");
 const bcrypt = require("bcrypt");
 const { generateToken } = require("../utils/generateToken");
 const sendVerificationEmail = require("../utils/sendEmail");
+const { validateEmail, validatePhoneNumber } = require("../utils/validate");
 
 const signup = async (req, res) => {
   try {
@@ -22,9 +23,12 @@ const signup = async (req, res) => {
         .status(400)
         .json({ success: false, message: "All fields are required." });
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email))
+    if (!validatePhoneNumber(phoneNumber))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid phone number format." });
+
+    if (!validateEmail(email))
       return res
         .status(400)
         .json({ success: false, message: "Invalid email format." });
@@ -234,6 +238,18 @@ const forgotPassword = async (req, res) => {
   const { email } = req.body;
 
   try {
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+    if (!validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email",
+      });
+    }
     const user = await userModel.findOne({ email });
     if (!user) {
       return res

@@ -2,16 +2,21 @@ const orderModel = require("../models/orderModel");
 const cartModel = require("../models/cartModel");
 const productModel = require("../models/productModel");
 const {
-  sendNotification,
-  sendNotificationToFriends,
+  sendNotification
 } = require("./notification");
 const shopModel = require("../models/shopModel");
+const { validatePhoneNumber } = require("../utils/validate");
 
 const createOrder = async (req, res) => {
   const { _id: userId } = req.user;
   const { shipping } = req.body;
 
   try {
+    if (!validatePhoneNumber(shipping.phoneNumber))
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid phone number format." });
+
     // 🔹 Lấy giỏ hàng của user
     const cart = await cartModel.findOne({ orderBy: userId }).populate({
       path: "items.product",
@@ -19,7 +24,7 @@ const createOrder = async (req, res) => {
     });
 
     if (!cart || cart.items.length === 0)
-      return res 
+      return res
         .status(400)
         .json({ success: false, message: "Your cart is empty." });
 
@@ -271,14 +276,9 @@ const cancelOrder = async (req, res) => {
     order.cancelledAt = new Date();
     await order.save();
 
-    await sendNotification(
-      [order.shop.owner],
-      userId,
-      "user_cancelled_order",
-      {
-        orderId: order.orderId,
-      }
-    );
+    await sendNotification([order.shop.owner], userId, "user_cancelled_order", {
+      orderId: order.orderId,
+    });
 
     return res.json({
       success: true,
