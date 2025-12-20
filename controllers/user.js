@@ -3,10 +3,14 @@ const shopModel = require("../models/shopModel");
 const postModel = require("../models/postModel");
 const groupModel = require("../models/groupModel");
 const commentModel = require("../models/commentModel");
+const chatModel = require("../models/chatModel");
 const reactionModel = require("../models/reactionModel");
-const { removeDiacritics, deleteOldFile } = require("../helper/helper");
+const { removeDiacritics } = require("../helper/helper");
 const { sendNotification } = require("./notification");
-const { uploadToCloudinary, deleteFromCloudinary } = require("../services/cloudinary/upload");
+const {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+} = require("../services/cloudinary/upload");
 
 const getUserProgress = async (userId) => {
   const user = await userModel.findById(userId).select("createdAt friends");
@@ -55,7 +59,7 @@ const updateUserInfo = async (req, res) => {
     );
 
     if (!updatedUser) {
-      return res.status(404).json({ message: "Không tìm thấy người dùng" });
+      return res.status(404).json({ message: "User not found." });
     }
 
     const newUpdatedUser = await userModel
@@ -78,12 +82,12 @@ const updateUserInfo = async (req, res) => {
       });
 
     res.status(200).json({
-      message: "Cập nhật thông tin thành công",
+      message: "User information updated successfully.",
       data: newUpdatedUser,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi cập nhật thông tin:", error);
-    res.status(500).json({ message: "Lỗi server", error: error.message });
+    console.error("Error updating user information:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
   }
 };
 
@@ -95,8 +99,15 @@ const setAvatar = async (req, res) => {
         .status(400)
         .json({ success: false, message: "No file uploaded" });
 
-    const isDefaultAvatar = (path) => {
-      return path === "default-avatar";
+    const isDefaultAvatar = (path, type) => {
+      switch (type) {
+        case "User":
+        case "Shop":
+        case "Group":
+          return path === "default-avatar";
+        case "GroupChat":
+          return path === "group-chat";
+      }
     };
 
     let oldAvatar;
@@ -148,6 +159,20 @@ const setAvatar = async (req, res) => {
         );
         break;
 
+      case "GroupChat":
+        const groupChat = await chatModel.findById(id);
+        if (!groupChat)
+          return res
+            .status(404)
+            .json({ success: false, message: "Group chat not found" });
+        oldAvatar = groupChat.avatar;
+        await chatModel.findByIdAndUpdate(
+          id,
+          { avatar: newImagePublicId },
+          { new: true }
+        );
+        break;
+
       default:
         return res
           .status(400)
@@ -155,8 +180,8 @@ const setAvatar = async (req, res) => {
     }
 
     // ✅ Xóa ảnh cũ nếu không phải ảnh mặc định
-    if (!isDefaultAvatar(oldAvatar)) {
-        await deleteFromCloudinary(oldAvatar);
+    if (!isDefaultAvatar(oldAvatar, type)) {
+      await deleteFromCloudinary(oldAvatar);
     }
 
     return res.status(200).json({
@@ -180,7 +205,6 @@ const setCoverPhoto = async (req, res) => {
       return res
         .status(400)
         .json({ success: false, message: "No file uploaded" });
-
 
     const isDefaultCoverPhoto = (path) => {
       return path === "background-gray-default";
@@ -379,7 +403,7 @@ const sendFriendRequest = async (req, res) => {
     if (senderId.toString() === receiverId) {
       return res.status(400).json({
         success: false,
-        message: "Không thể gửi lời mời cho chính mình",
+        message: "You cannot send a friend request to yourself.",
       });
     }
 
@@ -393,9 +417,10 @@ const sendFriendRequest = async (req, res) => {
       receiver.friendRequests.includes(senderId) ||
       receiver.friends.includes(senderId)
     ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Đã gửi lời mời hoặc đã là bạn" });
+      return res.status(400).json({
+        success: false,
+        message: "Friend request already sent or you are already friends.",
+      });
     }
 
     receiver.friendRequests.push(senderId);
@@ -410,7 +435,7 @@ const sendFriendRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã gửi lời mời kết bạn",
+      message: "Friend request sent successfully.",
       user: updatedSender,
     });
   } catch (err) {
@@ -444,7 +469,7 @@ const cancelFriendRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã hủy lời mời kết bạn",
+      message: "Friend request cancelled successfully.",
       user: updatedSender,
     });
   } catch (err) {
@@ -473,7 +498,7 @@ const acceptFriendRequest = async (req, res) => {
     if (!receiver.friendRequests.includes(senderId)) {
       return res
         .status(400)
-        .json({ success: false, message: "Không có lời mời kết bạn" });
+        .json({ success: false, message: "No friend request found." });
     }
 
     receiver.friends.push(senderId);
@@ -495,7 +520,7 @@ const acceptFriendRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã chấp nhận lời mời kết bạn",
+      message: "Friend request accepted successfully.",
       user: updatedReceiver,
     });
   } catch (err) {
@@ -523,7 +548,7 @@ const declineFriendRequest = async (req, res) => {
     if (!receiver.friendRequests.includes(senderId)) {
       return res
         .status(400)
-        .json({ success: false, message: "Không có lời mời kết bạn" });
+        .json({ success: false, message: "No friend request found." });
     }
 
     receiver.friendRequests = receiver.friendRequests.filter(
@@ -538,7 +563,7 @@ const declineFriendRequest = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã từ chối lời mời kết bạn",
+      message: "Friend request declined successfully.",
       user: updatedReceiver,
     });
   } catch (err) {
@@ -578,7 +603,7 @@ const removeFriend = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã hủy kết bạn",
+      message: "Friend removed successfully.",
       user: updatedUser,
     });
   } catch (err) {
@@ -692,37 +717,37 @@ const addUserRingtone = async (req, res) => {
 };
 
 const renameUserRingtone = async (req, res) => {
-    try {
-        const userId = req.user._id;
-        const { ringtoneId } = req.params;
-        const { name } = req.body;
-        const user = await userModel.findById(userId);
+  try {
+    const userId = req.user._id;
+    const { ringtoneId } = req.params;
+    const { name } = req.body;
+    const user = await userModel.findById(userId);
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: "User not found",
-            });
-        }
-
-        const ringtone = user.ringtones.id(ringtoneId);
-        if (!ringtone) {
-            return res.status(404).json({
-                success: false,
-                message: "Ringtone not found",
-            });
-        }
-        ringtone.name = name || ringtone.name;
-        await user.save();
-        return res.status(200).json({
-            success: true,
-            message: "Ringtone renamed successfully",
-            data: ringtone,
-        });
-    } catch (err) {
-        return res.status(500).json({ success: false, message: err.message });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
     }
-}
+
+    const ringtone = user.ringtones.id(ringtoneId);
+    if (!ringtone) {
+      return res.status(404).json({
+        success: false,
+        message: "Ringtone not found",
+      });
+    }
+    ringtone.name = name || ringtone.name;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "Ringtone renamed successfully",
+      data: ringtone,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 const deleteUserRingtone = async (req, res) => {
   try {
@@ -821,6 +846,5 @@ module.exports = {
   addUserRingtone,
   deleteUserRingtone,
   setActiveRingtone,
-    renameUserRingtone,
+  renameUserRingtone,
 };
-

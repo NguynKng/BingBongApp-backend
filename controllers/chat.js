@@ -94,16 +94,16 @@ const getChatIdByTypeId = async (req, res) => {
         payload.participants.push(shop.owner);
       }
 
-        if (type === "fanpage") {
-          payload.fanpageId = fanpageId;
+      if (type === "fanpage") {
+        payload.fanpageId = fanpageId;
 
-          const page = await groupModel.findById(fanpageId)
-          if (!page) {
-            return res
-              .status(404)
-              .json({ success: false, message: "Fanpage not found" });
-          }
+        const page = await groupModel.findById(fanpageId);
+        if (!page) {
+          return res
+            .status(404)
+            .json({ success: false, message: "Fanpage not found" });
         }
+      }
 
       const newChat = await chatModel.create(payload);
 
@@ -229,7 +229,7 @@ const getRecentChats = async (req, res) => {
       })
       .populate("participants", "fullName avatar slug")
       .populate("shopId", "name avatar slug owner")
-        .populate("fanpageId", "name avatar slug")
+      .populate("fanpageId", "name avatar slug")
       .populate({
         path: "lastMessage",
         populate: { path: "sender", select: "fullName avatar slug" },
@@ -249,9 +249,206 @@ const getRecentChats = async (req, res) => {
   }
 };
 
+const updateGroupChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { groupName } = req.body;
+    const userId = req.user._id;
+
+    const chat = await chatModel.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    if (chat.type !== "group") {
+      return res.status(400).json({
+        success: false,
+        message: "This is not a group chat",
+      });
+    }
+
+    if (!chat.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a member of this group",
+      });
+    }
+
+    if (groupName) chat.groupName = groupName;
+
+    await chat.save();
+
+    const updatedChat = await chatModel
+      .findById(chatId)
+      .populate("participants", "fullName avatar slug")
+      .populate({
+        path: "lastMessage",
+        populate: { path: "sender", select: "fullName avatar slug" },
+      });
+
+    return res.status(200).json({
+      success: true,
+      data: updatedChat,
+    });
+  } catch (error) {
+    console.error("Error updating group chat:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const addGroupMembers = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const { userIds } = req.body;
+    const userId = req.user._id;
+
+    if (!userIds || userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "User IDs are required",
+      });
+    }
+
+    const chat = await chatModel.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    if (chat.type !== "group") {
+      return res.status(400).json({
+        success: false,
+        message: "This is not a group chat",
+      });
+    }
+
+    if (!chat.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a member of this group",
+      });
+    }
+
+    // Add new members
+    const newMembers = userIds.filter((id) => !chat.participants.includes(id));
+    chat.participants.push(...newMembers);
+
+    await chat.save();
+
+    const updatedChat = await chatModel
+      .findById(chatId)
+      .populate("participants", "fullName avatar slug")
+      .populate({
+        path: "lastMessage",
+        populate: { path: "sender", select: "fullName avatar slug" },
+      });
+
+    // Emit to all participants including new members
+    updatedChat.participants.forEach((participant) => {
+      const uid = participant._id.toString();
+      if (userSocketMap[uid]) {
+        emitToUser(uid, "groupMembersAdded", {
+          chat: updatedChat,
+        });
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: updatedChat,
+    });
+  } catch (error) {
+    console.error("Error adding group members:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const leaveGroupChat = async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user._id;
+
+    const chat = await chatModel.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({
+        success: false,
+        message: "Chat not found",
+      });
+    }
+
+    if (chat.type !== "group") {
+      return res.status(400).json({
+        success: false,
+        message: "This is not a group chat",
+      });
+    }
+
+    if (!chat.participants.includes(userId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a member of this group",
+      });
+    }
+
+    // Remove user from participants
+    chat.participants = chat.participants.filter(
+      (id) => id.toString() !== userId.toString()
+    );
+
+    await chat.save();
+
+    const updatedChat = await chatModel
+      .findById(chatId)
+      .populate("participants", "fullName avatar slug")
+      .populate({
+        path: "lastMessage",
+        populate: { path: "sender", select: "fullName avatar slug" },
+      });
+
+    // Emit to remaining participants
+    updatedChat.participants.forEach((participant) => {
+      const uid = participant._id.toString();
+      if (userSocketMap[uid]) {
+        emitToUser(uid, "groupMemberLeft", {
+          chat: updatedChat,
+          leftUserId: userId,
+        });
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "You have left the group",
+    });
+  } catch (error) {
+    console.error("Error leaving group chat:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   getChatIdByTypeId,
   getChatById,
   createGroupChat,
   getRecentChats,
+  updateGroupChat,
+  addGroupMembers,
+  leaveGroupChat,
 };

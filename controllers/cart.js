@@ -17,7 +17,6 @@ const addToCart = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Product not found." });
 
-    // 🔹 Nếu có variant thì tìm variant tương ứng
     let selectedVariant = null;
     if (variantId) {
       selectedVariant = product.variants.find(
@@ -28,25 +27,17 @@ const addToCart = async (req, res) => {
           .status(400)
           .json({ success: false, message: "Variant not found." });
     }
-
-    // 🔹 Tính giá
     const price =
       selectedVariant?.price ??
       product.basePrice - (product.basePrice * product.discount) / 100;
-
-    // 🔹 Kiểm tra tồn kho
     const availableStock = selectedVariant?.stock;
     if (!availableStock || availableStock <= 0) {
       return res
         .status(400)
         .json({ success: false, message: "Product is out of stock." });
     }
-
-    // 🔹 Tìm giỏ hàng
     let cart = await cartModel.findOne({ orderBy: userId });
     if (!cart) cart = new cartModel({ orderBy: userId, items: [], total: 0 });
-
-    // 🔹 Tìm item trùng (cùng product + variant)
     const existingItem = cart.items.find(
       (item) =>
         item.product.toString() === productId &&
@@ -56,8 +47,6 @@ const addToCart = async (req, res) => {
     const totalQuantityInCart = existingItem
       ? existingItem.quantity + quantity
       : quantity;
-
-    // ❌ Nếu vượt stock → báo lỗi
     if (totalQuantityInCart > availableStock) {
       return res.status(400).json({
         success: false,
@@ -65,7 +54,6 @@ const addToCart = async (req, res) => {
       });
     }
 
-    // ✅ Cập nhật item
     if (existingItem) {
       existingItem.quantity += quantity;
       existingItem.price = price * existingItem.quantity;
@@ -77,8 +65,6 @@ const addToCart = async (req, res) => {
         price: price * quantity,
       });
     }
-
-    // 🔹 Cập nhật tổng tiền
     cart.total = cart.items.reduce((sum, item) => sum + item.price, 0);
     await cart.save();
 
@@ -103,7 +89,7 @@ const addToCart = async (req, res) => {
 };
 
 // =========================
-// 🛍️ GET USER CART
+// GET USER CART
 // =========================
 const getUserCart = async (req, res) => {
   const { _id: userId } = req.user;
@@ -131,7 +117,7 @@ const getUserCart = async (req, res) => {
 };
 
 // =========================
-// ❌ REMOVE FROM CART
+// REMOVE FROM CART
 // =========================
 const removeFromCart = async (req, res) => {
   const { _id: userId } = req.user;
@@ -144,7 +130,6 @@ const removeFromCart = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Cart not found." });
 
-    // 🔹 Xóa đúng sản phẩm (cùng product + variant)
     cart.items = cart.items.filter(
       (item) =>
         !(
@@ -175,7 +160,7 @@ const removeFromCart = async (req, res) => {
 };
 
 // =========================
-// 🧹 CLEAR CART
+// CLEAR CART
 // =========================
 const clearCart = async (req, res) => {
   const { _id: userId } = req.user;
@@ -217,7 +202,7 @@ const minusFromCart = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Product not found." });
 
-    // 🔹 Xác định variant nếu có
+    // Xác định variant nếu có
     const selectedVariant = variantId
       ? product.variants.find((v) => v._id.toString() === variantId)
       : null;
@@ -226,7 +211,7 @@ const minusFromCart = async (req, res) => {
       selectedVariant?.price ??
       product.basePrice - (product.basePrice * product.discount) / 100;
 
-    // 🔹 Tìm sản phẩm trong giỏ hàng
+    // Tìm sản phẩm trong giỏ hàng
     const existingItem = cart.items.find(
       (item) =>
         item.product.toString() === productId &&
@@ -238,12 +223,12 @@ const minusFromCart = async (req, res) => {
         .status(404)
         .json({ success: false, message: "Item not found in cart." });
 
-    // 🔹 Nếu còn > 1 → giảm số lượng
+    // Nếu còn > 1 → giảm số lượng
     if (existingItem.quantity > 1) {
       existingItem.quantity -= 1;
       existingItem.price = price * existingItem.quantity;
     } else {
-      // 🔹 Nếu còn 1 → xóa khỏi giỏ hàng
+      // Nếu còn 1 → xóa khỏi giỏ hàng
       cart.items = cart.items.filter(
         (item) =>
           !(
@@ -253,7 +238,7 @@ const minusFromCart = async (req, res) => {
       );
     }
 
-    // 🔹 Cập nhật tổng tiền
+    // Cập nhật tổng tiền
     cart.total = cart.items.reduce((sum, item) => sum + item.price, 0);
     await cart.save();
 

@@ -1,7 +1,5 @@
 const Product = require("../models/productModel");
 const Shop = require("../models/shopModel");
-const path = require("path");
-const fs = require("fs");
 const { uploadToCloudinary, deleteFromCloudinary } = require("../services/cloudinary/upload");
 
 const isShopOwner = async (userId, shopId) => {
@@ -34,21 +32,21 @@ const createProduct = async (req, res) => {
     ) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng điền đầy đủ thông tin sản phẩm",
+        message: "All required fields must be filled.",
       });
     }
 
     if (!shop) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng thêm id cửa hàng",
+        message: "Please provide the shop ID.",
       });
     }
 
     if (!(await isShopOwner(req.user._id, shop))) {
       return res.status(403).json({
         success: false,
-        message: "Bạn không có quyền tạo sản phẩm cho cửa hàng này.",
+        message: "You do not have permission to create a product for this shop.",
       });
     }
 
@@ -57,7 +55,7 @@ const createProduct = async (req, res) => {
     if (!existShop) {
       return res.status(404).json({
         success: false,
-        message: "Cửa hàng không tồn tại",
+        message: "Shop not found.",
       });
     }
 
@@ -69,7 +67,7 @@ const createProduct = async (req, res) => {
       } catch {
         return res.status(400).json({
           success: false,
-          message: "Variants không đúng định dạng JSON.",
+          message: "Variants format is invalid.",
         });
       }
     } else if (Array.isArray(variants)) {
@@ -82,7 +80,7 @@ const createProduct = async (req, res) => {
       if (!v.name || !v.price || !v.stock) {
         return res.status(400).json({
           success: false,
-          message: `Vui lòng điền đầy đủ thông tin cho variant thứ ${i + 1}.`,
+          message: `Please fill in all information for variant ${i + 1}.`,
         });
       }
     }
@@ -92,7 +90,7 @@ const createProduct = async (req, res) => {
     if (existed) {
       return res.status(409).json({
         success: false,
-        message: "Tên sản phẩm đã tồn tại trong shop này.",
+        message: "This shop already has a product with the same name.",
       });
     }
 
@@ -103,14 +101,14 @@ const createProduct = async (req, res) => {
     if (mainImages.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng tải lên ít nhất 1 ảnh chính cho sản phẩm.",
+        message: "Please upload at least one main image for the product.",
       });
     }
 
     if (mainImages.length > 10) {
       return res.status(400).json({
         success: false,
-        message: "Chỉ được phép tải tối đa 10 ảnh chính.",
+        message: "You can only upload up to 10 main images.",
       });
     }
 
@@ -164,14 +162,14 @@ const createProduct = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: "Tạo sản phẩm thành công.",
+      message: "Product created successfully.",
       product: newProduct,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi tạo product:", error);
+    console.error("❌ Error creating product:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi tạo sản phẩm.",
+      message: "Server error while creating product.",
       error: error.message,
     });
   }
@@ -197,14 +195,14 @@ const updateProductById = async (req, res) => {
     if (!name || !category || !basePrice || !shop || !description) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng điền đầy đủ thông tin sản phẩm",
+        message: "Please fill in all required product information.",
       });
     }
 
     if (!(await isShopOwner(req.user._id, shop))) {
       return res.status(403).json({
         success: false,
-        message: "Bạn không có quyền sửa sản phẩm của shop này.",
+        message: "You do not have permission to edit products for this shop.",
       });
     }
 
@@ -213,7 +211,7 @@ const updateProductById = async (req, res) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy sản phẩm.",
+        message: "Product not found.",
       });
     }
 
@@ -232,7 +230,7 @@ const updateProductById = async (req, res) => {
       try {
         await deleteFromCloudinary(pubId);
       } catch (err) {
-        console.log("⚠️ Lỗi khi xoá ảnh:", pubId);
+        console.log("⚠️ Error deleting image:", pubId);
       }
     }
 
@@ -299,14 +297,14 @@ const updateProductById = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Cập nhật sản phẩm thành công",
+      message: "Product updated successfully.",
       product,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi cập nhật product:", error);
+    console.error("❌ Error updating product:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi cập nhật sản phẩm.",
+      message: "Server error while updating product.",
       error: error.message,
     });
   }
@@ -322,7 +320,7 @@ const getProductBySlug = async (req, res) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy sản phẩm.",
+        message: "Product not found.",
       });
     }
     res.status(200).json({
@@ -330,10 +328,10 @@ const getProductBySlug = async (req, res) => {
       data: product,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy sản phẩm:", error);
+    console.error("❌ Error getting product by slug:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy sản phẩm.",
+      message: "Server error while getting product.",
       error: error.message,
     });
   }
@@ -346,7 +344,7 @@ const getProductById = async (req, res) => {
     if (!product) {
       return res.status(404).json({
         success: false,
-        message: "Không tìm thấy sản phẩm.",
+        message: "Product not found.",
       });
     }
     res.status(200).json({
@@ -354,10 +352,10 @@ const getProductById = async (req, res) => {
       data: product,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy sản phẩm:", error);
+    console.error("❌ Error getting product by ID:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy sản phẩm.",
+      message: "Server error while getting product.",
       error: error.message,
     });
   }
@@ -365,7 +363,7 @@ const getProductById = async (req, res) => {
 
 const getProductsByShop = async (req, res) => {
   const { shopId } = req.params;
-  const { minPrice, maxPrice, category, isDiscounted, name } = req.query;
+  const { minPrice, maxPrice, category, isDiscounted, name, page = 1, limit = 20 } = req.query;
 
   try {
     const filter = { shop: shopId };
@@ -380,7 +378,7 @@ const getProductsByShop = async (req, res) => {
       if (!shop) {
         return res.status(404).json({
           success: false,
-          message: "Không tìm thấy cửa hàng.",
+          message: "Shop not found.",
         });
       }
 
@@ -392,8 +390,10 @@ const getProductsByShop = async (req, res) => {
         return res.status(200).json({
           success: true,
           count: 0,
+          totalCount: 0,
           data: [],
-          message: "Danh mục không tồn tại trong shop này.",
+          hasMore: false,
+          message: "Category does not exist in this shop.",
         });
       }
 
@@ -420,16 +420,28 @@ const getProductsByShop = async (req, res) => {
       });
     }
 
+    // 📄 6. Pagination
+    const totalCount = products.length;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+    const paginatedProducts = products.slice(startIndex, endIndex);
+    const hasMore = endIndex < totalCount;
+
     res.status(200).json({
       success: true,
-      count: products.length,
-      data: products,
+      count: paginatedProducts.length,
+      totalCount,
+      data: paginatedProducts,
+      hasMore,
+      currentPage: pageNum,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy sản phẩm:", error);
+    console.error("❌ Error getting products by shop:", error);
     res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy sản phẩm.",
+      message: "Server error while getting products by shop.",
       error: error.message,
     });
   }

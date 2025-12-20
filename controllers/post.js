@@ -12,7 +12,6 @@ const {
   sendNotificationToFriends,
 } = require("./notification");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
-const { CLOUDINARY_FOLDERS } = require("../services/cloudinary/constant");
 const { uploadToCloudinary, cloudinary, deleteManyFromCloudinary } = require("../services/cloudinary/upload");
 
 //
@@ -27,7 +26,7 @@ const createPost = async (req, res) => {
     if (!content || !postedByType || !postedById) {
       return res.status(400).json({
         success: false,
-        message: "Thiếu thông tin bắt buộc.",
+        message: "All fields are required.",
       });
     }
 
@@ -35,7 +34,7 @@ const createPost = async (req, res) => {
     if (!validTypes.includes(postedByType)) {
       return res.status(400).json({
         success: false,
-        message: "Loại bài đăng không hợp lệ.",
+        message: "Invalid post type.",
       });
     }
 
@@ -44,13 +43,13 @@ const createPost = async (req, res) => {
       if (!group) {
         return res.status(404).json({
           success: false,
-          message: "Nhóm không tồn tại.",
+          message: "Group not found.",
         });
       }
       if (!group.settings.allowMemberPost) {
         return res.status(403).json({
           success: false,
-          message: "Bạn không được phép đăng bài trong nhóm này.",
+          message: "You are not allowed to post in this group.",
         });
       }
     }
@@ -119,14 +118,14 @@ const createPost = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Đăng bài thành công.",
+      message: "Post created successfully.",
       post: populatedPost,
     });
   } catch (error) {
     console.error("❌ Create post error:", error);
     return res.status(500).json({
       success: false,
-      message: "Đã xảy ra lỗi khi đăng bài.",
+      message: "An error occurred while creating the post.",
     });
   }
 };
@@ -174,7 +173,7 @@ const getPosts = async (req, res) => {
         console.error("Get posts error:", error);
         return res.status(500).json({
             success: false,
-            message: "Không thể tải danh sách bài viết.",
+            message: "Failed to load posts.",
         });
     }
 };
@@ -367,13 +366,13 @@ const markPostAsViewed = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã đánh dấu bài viết.",
+      message: "Post marked as viewed.",
     });
   } catch (error) {
     console.error("Mark viewed error:", error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi khi đánh dấu bài viết.",
+      message: "Error marking post as viewed.",
     });
   }
 };
@@ -413,7 +412,7 @@ const getPostsByOwner = async (req, res) => {
     console.error("Get posts by owner error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể tải bài viết.",
+      message: "Failed to load posts.",
     });
   }
 };
@@ -448,14 +447,14 @@ const getPostById = async (req, res) => {
     if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Bài viết không tồn tại." });
+        .json({ success: false, message: "Post not found." });
 
     return res.status(200).json({ success: true, post });
   } catch (error) {
     console.error("Get post error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể tải bài viết.",
+      message: "Failed to load post.",
     });
   }
 };
@@ -473,12 +472,12 @@ const updatePost = async (req, res) => {
     if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Không tìm thấy bài viết." });
+        .json({ success: false, message: "Post not found." });
 
     if (post.author.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Bạn không có quyền chỉnh sửa bài viết này.",
+        message: "You do not have permission to edit this post.",
       });
     }
 
@@ -488,14 +487,14 @@ const updatePost = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Cập nhật bài viết thành công.",
+      message: "Post updated successfully.",
       post,
     });
   } catch (error) {
     console.error("Update post error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể cập nhật bài viết.",
+      message: "Failed to update post.",
     });
   }
 };
@@ -512,12 +511,12 @@ const deletePost = async (req, res) => {
     if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Bài viết không tồn tại." });
+        .json({ success: false, message: "Post not found." });
 
     if (post.author.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Bạn không có quyền xóa bài viết này.",
+        message: "You do not have permission to delete this post.",
       });
     }
 
@@ -530,13 +529,13 @@ const deletePost = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Đã xoá bài viết thành công.",
+      message: "Delete post successfully.",
     });
   } catch (error) {
     console.error("Delete post error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể xoá bài viết.",
+      message: "Failed to delete post.",
     });
   }
 };
@@ -553,14 +552,14 @@ const addComment = async (req, res) => {
     if (!content?.trim()) {
       return res
         .status(400)
-        .json({ success: false, message: "Nội dung bình luận trống." });
+        .json({ success: false, message: "Comment content is empty." });
     }
 
     const post = await postModel.findById(postId);
     if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Bài viết không tồn tại." });
+        .json({ success: false, message: "Post not found." });
 
     const newComment = await commentModel.create({
       post: postId,
@@ -592,14 +591,14 @@ const addComment = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Đã thêm bình luận.",
+      message: "Comment added successfully.",
       comment: populatedComment,
     });
   } catch (error) {
     console.error("Add comment error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể bình luận.",
+      message: "Failed to add comment.",
     });
   }
 };
@@ -616,14 +615,14 @@ const addReply = async (req, res) => {
     if (!content?.trim()) {
       return res
         .status(400)
-        .json({ success: false, message: "Nội dung phản hồi trống." });
+        .json({ success: false, message: "Reply content is empty." });
     }
 
-    const parentComment = await commentModel.findById(commentId);
+    const parentComment = await commentModel.findById(commentId).populate('user', '_id');
     if (!parentComment)
       return res
         .status(404)
-        .json({ success: false, message: "Không tìm thấy bình luận cha." });
+        .json({ success: false, message: "Parent comment not found." });
 
     const newReply = await commentModel.create({
       post: parentComment.post,
@@ -640,16 +639,36 @@ const addReply = async (req, res) => {
       .findById(newReply._id)
       .populate("user", "fullName avatar slug");
 
+    // 🔔 Gửi thông báo cho người được reply (chủ comment gốc)
+    if (parentComment.user._id.toString() !== userId.toString()) {
+      await sendNotification([parentComment.user._id], userId, "reply_comment", {
+        postId: post._id,
+        commentId: newReply._id,
+        parentCommentId: commentId,
+      });
+    }
+
+    // 🔔 Gửi thông báo cho chủ bài viết (nếu khác người reply và khác người được reply)
+    if (
+      post.author.toString() !== userId.toString() &&
+      post.author.toString() !== parentComment.user._id.toString()
+    ) {
+      await sendNotification([post.author], userId, "comment_post", {
+        postId: post._id,
+        commentId: newReply._id,
+      });
+    }
+
     return res.status(201).json({
       success: true,
-      message: "Đã thêm phản hồi.",
+      message: "Reply added successfully.",
       comment: populatedReply,
     });
   } catch (error) {
     console.error("Add reply error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể phản hồi.",
+      message: "Failed to add reply.",
     });
   }
 };
@@ -665,7 +684,7 @@ const getCommentsByPost = async (req, res) => {
     if (!post)
       return res
         .status(404)
-        .json({ success: false, message: "Bài viết không tồn tại." });
+        .json({ success: false, message: "Post not found." });
 
     const comments = await commentModel
       .find({ post: postId, parent: null })
@@ -710,7 +729,7 @@ const getCommentsByPost = async (req, res) => {
     console.error("Get comments error:", error);
     return res.status(500).json({
       success: false,
-      message: "Không thể tải bình luận.",
+      message: "Failed to load comments.",
     });
   }
 };

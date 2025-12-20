@@ -409,7 +409,7 @@ const approveMember = async (req, res) => {
     });
     return res.status(200).json({ success: true, message: "Member approved" });
   } catch (err) {
-    console.log(err)
+    console.log(err);
     return res.status(500).json({ success: false, error: err.message });
   }
 };
@@ -508,8 +508,7 @@ const removeMember = async (req, res) => {
 const manageRole = async (req, res) => {
   try {
     const { groupId, userId } = req.params;
-    const { action, role } = req.body; // action: "add" | "remove", role: "admin" | "moderator"
-
+    const { action, role } = req.body; 
     const group = await Group.findById(groupId);
     if (!group)
       return res.status(404).json({ success: false, error: "Group not found" });
@@ -572,10 +571,17 @@ const manageRole = async (req, res) => {
 
     await group.save();
 
+    const newGroupData = await Group.findById(groupId)
+      .populate("createdBy", "fullName avatar slug")
+      .populate("members", "fullName avatar slug")
+      .populate("admins", "fullName avatar slug")
+      .populate("moderators", "fullName avatar slug")
+      .populate("pendingMembers", "fullName avatar slug");
+
     return res.status(200).json({
       success: true,
       message: `${role} ${action}ed successfully`,
-      data: group,
+      data: newGroupData,
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });

@@ -510,6 +510,13 @@ const addReply = async (req, res) => {
     await comment.save();
     await comment.populate("replies.user", "fullName avatar slug");
 
+    await sendNotification(
+      [comment.user],
+      userId,
+      "reply_comment_short",
+      { shortId: comment.short }
+    );
+
     res.status(201).json({
       success: true,
       data: comment.replies[comment.replies.length - 1],

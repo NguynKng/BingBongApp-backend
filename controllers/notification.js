@@ -68,6 +68,8 @@ const getNotificationContent = (type) => {
       return `reacted to your post.`;
     case "comment_post":
       return `commented on your post.`;
+    case "reply_comment":
+      return `replied to your comment.`;
     case "new_post":
       return `posted a new status.`;
     case "friend_request":
@@ -98,6 +100,8 @@ const getNotificationContent = (type) => {
       return `liked your short.`;
     case "comment_short":
       return `commented on your short.`;
+    case "reply_comment_short":
+        return `replied to your comment on a short.`;
     default:
       return "";
   }
@@ -132,7 +136,7 @@ const getNotification = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Lỗi khi lấy thông báo",
+      message: "Failed to get notifications",
     });
   }
 };
@@ -150,13 +154,13 @@ const markAsAllRead = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Đã đánh dấu tất cả thông báo là đã đọc",
+      message: "All notifications marked as read.",
       data: updatedNotifications,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Lỗi khi đánh dấu thông báo là đã đọc",
+      message: "Error marking notifications as read.",
     });
   }
 };

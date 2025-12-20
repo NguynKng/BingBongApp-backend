@@ -40,10 +40,10 @@ function removeRoomSocket(roomId, socketId) {
 }
 
 function emitToUser(userId, event, payload) {
-    const io = getSocketInstance();
-    const sids = getSocketsByUser(userId) || [];
-    sids.forEach((sid) => io.to(sid).emit(event, payload));
-  }
+  const io = getSocketInstance();
+  const sids = getSocketsByUser(userId) || [];
+  sids.forEach((sid) => io.to(sid).emit(event, payload));
+}
 
 // dọn dẹp 1 pending call
 function clearPending(callId) {
@@ -80,7 +80,12 @@ function setupSocket(server) {
       addUserSocket(userId, socket.id);
       socket.join(userId);
 
-      console.log(`[USER ONLINE] ${userId} -> ${socket.id}`);
+    //   console.log(`[USER ONLINE] ${userId} -> ${socket.id}`);
+    //   console.log("=== ALL ONLINE USERS ===");
+    //   Object.keys(userSocketMap).forEach((uid) => {
+    //     const sockets = Array.from(userSocketMap[uid]);
+    //     console.log(`User ${uid}: [${sockets.join(", ")}]`);
+    //   });
 
       // Send list of online users to the newly connected user
       socket.emit("getOnlineUsers", Object.keys(userSocketMap));
@@ -256,5 +261,5 @@ function setupSocket(server) {
 module.exports = {
   setupSocket,
   userSocketMap,
-  emitToUser
+  emitToUser,
 };

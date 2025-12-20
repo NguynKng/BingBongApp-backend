@@ -219,7 +219,7 @@ const createSampleShop = async (req, res) => {
     await newShop.save();
 
     res.status(201).json({
-      message: "Tạo shop thành công!",
+      message: "Create sample shop successfully",
       shop: newShop,
       success: true,
     });
@@ -227,7 +227,7 @@ const createSampleShop = async (req, res) => {
     console.error(error);
     res
       .status(500)
-      .json({ message: "Lỗi server", error: error.message, success: false });
+      .json({ message: "Server error", error: error.message, success: false });
   }
 };
 
@@ -238,14 +238,14 @@ const createShop = async (req, res) => {
     if (!name || !description || !categories || categories.length === 0) {
       return res.status(400).json({
         success: false,
-        message: "Vui lòng cung cấp đầy đủ thông tin để tạo shop",
+        message: "Please provide all required information to create a shop.",
       });
     }
     const isExistingName = await Shop.findOne({ name: name.trim() });
     if (isExistingName) {
       return res.status(400).json({
         success: false,
-        message: "Tên shop đã tồn tại, vui lòng chọn tên khác",
+        message: "Shop name already exists, please choose a different name.",
       });
     }
     const shop = new Shop({
@@ -258,14 +258,14 @@ const createShop = async (req, res) => {
     await shop.save();
     return res.status(201).json({
       success: true,
-      message: "Tạo shop thành công",
+      message: "Shop created successfully",
       data: shop,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
     });
   }
 };
@@ -283,7 +283,7 @@ const getShopBySlug = async (req, res) => {
     if (!shop) {
       return res.status(404).json({
         success: false,
-        message: "Shop không tìm thấy",
+        message: "Shop not found.",
       });
     }
 
@@ -295,7 +295,7 @@ const getShopBySlug = async (req, res) => {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
       error: error.message,
     });
   }
@@ -312,7 +312,7 @@ const getAllShops = async (req, res) => {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
       error: error.message,
     });
   }
@@ -333,7 +333,7 @@ const getMyShops = async (req, res) => {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
       error: error.message,
     });
   }
@@ -354,7 +354,7 @@ const getFollowedShops = async (req, res) => {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
       error: error.message,
     });
   }
@@ -371,7 +371,7 @@ const addShopCategory = async (req, res) => {
     if (!shop) {
       return res.status(404).json({
         success: false,
-        message: "Shop không tìm thấy",
+        message: "Shop not found.",
       });
     }
 
@@ -383,7 +383,7 @@ const addShopCategory = async (req, res) => {
     if (isExist) {
       return res.status(400).json({
         success: false,
-        message: "Danh mục này đã tồn tại trong shop",
+        message: "This category already exists in the shop.",
       });
     }
 
@@ -393,14 +393,14 @@ const addShopCategory = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Thêm danh mục thành công",
+      message: "Category added successfully.",
       data: shop.categories,
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server",
+      message: "Server error",
       error: error.message,
     });
   }
@@ -416,7 +416,7 @@ const updateShopCategory = async (req, res) => {
     if (!shop) {
       return res.status(404).json({
         success: false,
-        message: "Shop không tìm thấy",
+        message: "Shop not found.",
       });
     }
 
@@ -430,7 +430,7 @@ const updateShopCategory = async (req, res) => {
     if (duplicateCategory) {
       return res.status(400).json({
         success: false,
-        message: "Tên danh mục này đã tồn tại trong shop",
+        message: "This category already exists in the shop.",
       });
     }
 
@@ -442,7 +442,7 @@ const updateShopCategory = async (req, res) => {
     if (categoryIndex === -1) {
       return res.status(404).json({
         success: false,
-        message: "Danh mục không tìm thấy",
+        message: "Category not found.",
       });
     }
 
@@ -462,7 +462,7 @@ const updateShopCategory = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Cập nhật danh mục thành công",
+      message: "Category updated successfully.",
       data: shop.categories,
     });
   } catch (error) {
@@ -495,7 +495,7 @@ const updateShopInfo = async (req, res) => {
     if (!shop) {
       return res.status(404).json({
         success: false,
-        message: "Shop không tồn tại hoặc bạn không có quyền chỉnh sửa",
+        message: "Shop not found or you do not have permission to edit it.",
       });
     }
 
@@ -535,14 +535,14 @@ const updateShopInfo = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Cập nhật thông tin shop thành công",
+      message: "Shop information updated successfully.",
       data: { shop },
     });
   } catch (error) {
     console.error(error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server khi cập nhật thông tin shop",
+      message: "Server error while updating shop information.",
       error: error.message,
     });
   }
@@ -747,10 +747,10 @@ const getShopNewProduct = async (req, res) => {
       data: products,
     });
   } catch (error) {
-    console.error("❌ Lỗi khi lấy sản phẩm mới:", error);
+    console.error("Error fetching new products:", error);
     return res.status(500).json({
       success: false,
-      message: "Lỗi server khi lấy sản phẩm mới.",
+      message: "Server error while fetching new products.",
       error: error.message,
     });
   }
