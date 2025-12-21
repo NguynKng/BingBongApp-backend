@@ -146,13 +146,13 @@ const getPosts = async (req, res) => {
             .limit(limit)
             .populate({
                 path: "author",
-                select: "fullName avatar slug badgeInventory",
+                select: "fullName avatar slug badgeInventory isVerifiedAccount",
                 populate: {
                     path: "badgeInventory.badgeId",
                     select: "name tier description", // lấy các field cần thiết
                 },
             })
-            .populate("postedById", "fullName name slug avatar coverPhoto")
+            .populate("postedById", "fullName name slug avatar coverPhoto isVerifiedAccount")
             .populate({
                 path: "reactions",
                 populate: { path: "user", select: "fullName avatar" },

@@ -83,6 +83,7 @@ const UserSchema = new mongoose.Schema(
     },
     // ⚙️ Cài đặt
     isVerified: { type: Boolean, default: false },
+    isVerifiedAccount: { type: Boolean, default: false },
     block: { type: Boolean, default: false },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     ringtones: [

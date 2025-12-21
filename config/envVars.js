@@ -2,7 +2,7 @@ const dotenv = require("dotenv")
 dotenv.config()
 
 module.exports = {
-    PORT: process.env.PORT || 5000,
+    PORT: process.env.PORT || 8000,
     MONGO_URI: process.env.MONGO_URI,
     SECRET_KEY: process.env.SECRET_KEY,
     NEWS_API_KEY: process.env.NEWS_API_KEY,
