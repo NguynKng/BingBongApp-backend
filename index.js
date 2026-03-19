@@ -14,7 +14,6 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE"], // Allowed HTTP methods
   credentials: true, // Allow credentials   
 };
-
 app.use(morgan("dev"));
 app.use(cors(corsOptions));
 app.use(express.json());

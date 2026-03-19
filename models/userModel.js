@@ -114,7 +114,7 @@ const UserSchema = new mongoose.Schema(
 );
 
 UserSchema.pre("save", async function (next) {
-  if (!this.isModified("fullName") && this.slug) return next();
+  if (this.slug) return next();
 
   // 1️⃣ Chuyển fullName thành dạng slug không dấu
   const parts = slugify(this.fullName, {

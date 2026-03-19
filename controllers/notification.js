@@ -72,6 +72,8 @@ const getNotificationContent = (type) => {
       return `replied to your comment.`;
     case "new_post":
       return `posted a new status.`;
+    case "tagged_in_post":
+      return `tagged you in a post.`;
     case "friend_request":
       return `sent you a friend request.`;
     case "accepted_request":
@@ -101,7 +103,7 @@ const getNotificationContent = (type) => {
     case "comment_short":
       return `commented on your short.`;
     case "reply_comment_short":
-        return `replied to your comment on a short.`;
+      return `replied to your comment on a short.`;
     default:
       return "";
   }

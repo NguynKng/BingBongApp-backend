@@ -15,10 +15,27 @@ const PostSchema = new mongoose.Schema({
     required: true,
     refPath: "postedByType",
   },
+  taggedUsers: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }],
 
   // 📝 Nội dung bài viết
-  content: { type: String, required: true },
+  content: { type: String, default: "" },
   media: [{ type: String, default: "" }],
+  videos: [{ type: String, default: "" }],
+  mediaOrder: [
+    {
+      type: {
+        type: String,
+        enum: ["image", "video"],
+      },
+      index: {
+        type: Number,
+        min: 0,
+      },
+    },
+  ],
 
   reactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Reaction" }],
   comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],

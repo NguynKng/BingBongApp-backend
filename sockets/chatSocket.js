@@ -80,12 +80,12 @@ function setupSocket(server) {
       addUserSocket(userId, socket.id);
       socket.join(userId);
 
-    //   console.log(`[USER ONLINE] ${userId} -> ${socket.id}`);
-    //   console.log("=== ALL ONLINE USERS ===");
-    //   Object.keys(userSocketMap).forEach((uid) => {
-    //     const sockets = Array.from(userSocketMap[uid]);
-    //     console.log(`User ${uid}: [${sockets.join(", ")}]`);
-    //   });
+      console.log(`[USER ONLINE] ${userId} -> ${socket.id}`);
+      console.log("=== ALL ONLINE USERS ===");
+      Object.keys(userSocketMap).forEach((uid) => {
+        const sockets = Array.from(userSocketMap[uid]);
+        console.log(`User ${uid}: [${sockets.join(", ")}]`);
+      });
 
       // Send list of online users to the newly connected user
       socket.emit("getOnlineUsers", Object.keys(userSocketMap));

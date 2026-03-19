@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { setAvatar, setCoverPhoto, getUserProfile, getUserByName, sendFriendRequest, cancelFriendRequest, removeFriend, acceptFriendRequest, declineFriendRequest, getAllUsers, getFriendSuggestions, updateUserInfo, getUserProfileBySlug, getUserStats, addUserRingtone,
   deleteUserRingtone,
-  setActiveRingtone, renameUserRingtone, } = require('../controllers/user');
+  setActiveRingtone, renameUserRingtone, renameUserProfile } = require('../controllers/user');
 const { protect, isAdmin } = require('../middleware/auth');
 const { uploadAvatarMiddleware, uploadCoverPhotoMiddleware, uploadRingtoneMiddleware } = require('../middleware/upload');
 
@@ -14,6 +14,7 @@ router.post('/cover-photo', protect, uploadCoverPhotoMiddleware, setCoverPhoto);
 
 // Get own profile
 router.get('/profile', protect, getUserProfile);
+router.put('/rename-profile', protect, renameUserProfile);
 router.get('/stats', protect, getUserStats);
 
 router.get('/profile/slug/:slug', getUserProfileBySlug);

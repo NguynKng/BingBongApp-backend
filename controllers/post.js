@@ -12,21 +12,50 @@ const {
   sendNotificationToFriends,
 } = require("./notification");
 const { BACKEND_AI_PYTHON_URL } = require("../config/envVars");
-const { uploadToCloudinary, cloudinary, deleteManyFromCloudinary } = require("../services/cloudinary/upload");
+const {
+  uploadToCloudinary,
+  cloudinary,
+  deleteManyFromCloudinary,
+} = require("../services/cloudinary/upload");
 
-//
-// 🧩 Tạo bài viết mới
-//
 const createPost = async (req, res) => {
   try {
-    const { content, postedByType, postedById } = req.body;
+    const { content, postedByType, postedById, taggedUsers, mediaOrder } = req.body;
     const author = req.user._id;
 
+    const normalizeFiles = (files) => {
+      if (!files) {
+        return { imageFiles: [], videoFiles: [] };
+      }
+
+      if (Array.isArray(files)) {
+        return {
+          imageFiles: files.filter((file) => file.mimetype?.startsWith("image/")),
+          videoFiles: files.filter((file) => file.mimetype?.startsWith("video/")),
+        };
+      }
+
+      return {
+        imageFiles: files.images || [],
+        videoFiles: files.videos || [],
+      };
+    };
+
+    const { imageFiles, videoFiles } = normalizeFiles(req.files);
+    const normalizedContent = content?.trim() || "";
+
     // ------------------- Validate -------------------
-    if (!content || !postedByType || !postedById) {
+    if (!postedByType || !postedById) {
       return res.status(400).json({
         success: false,
-        message: "All fields are required.",
+        message: "Post type and post target are required.",
+      });
+    }
+
+    if (!normalizedContent && imageFiles.length === 0 && videoFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Post must contain text, image, or video.",
       });
     }
 
@@ -56,10 +85,10 @@ const createPost = async (req, res) => {
 
     // ------------------- Gửi dữ liệu sang Flask kiểm duyệt (nếu cần) -------------------
     // const formData = new FormData();
-    // formData.append("content", content);
+    // formData.append("content", normalizedContent);
 
-    // if (req.files?.length) {
-    //   for (const file of req.files) {
+    // if (imageFiles.length > 0) {
+    //   for (const file of imageFiles) {
     //     formData.append("images", file.buffer, {
     //       filename: file.originalname,
     //       contentType: file.mimetype,
@@ -67,46 +96,130 @@ const createPost = async (req, res) => {
     //   }
     // }
 
-    // const flaskResponse = await axios.post(
-    //   `${BACKEND_AI_PYTHON_URL}/analyze-post`,
-    //   formData,
-    //   { headers: formData.getHeaders() }
-    // );
-    
-    // if (flaskResponse.data.isPostSafeForChild === false) {
-    //   return res.status(400).json({
-    //     success: false,
-    //     message: "Bài viết chứa nội dung không phù hợp.",
-    //   });
+    // if (normalizedContent || imageFiles.length > 0) {
+    //   const flaskResponse = await axios.post(
+    //     `${BACKEND_AI_PYTHON_URL}/analyze-post`,
+    //     formData,
+    //     { headers: formData.getHeaders() }
+    //   );
+
+    //   if (flaskResponse.data.isPostSafeForChild === false) {
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "This post contains inappropriate content.",
+    //     });
+    //   }
     // }
 
-    // ------------------- Upload ảnh lên Cloudinary -------------------
-    let mediaPublicIds = [];
-
-    if (req.files?.length) {
-      for (const file of req.files) {
-        const uploaded = await uploadToCloudinary(
-          file.buffer,
-          "post"
-        );
+    // ------------------- Upload media lên Cloudinary -------------------
+    const mediaPublicIds = [];
+    if (imageFiles.length > 0) {
+      for (const file of imageFiles) {
+        const uploaded = await uploadToCloudinary(file.buffer, "post");
         mediaPublicIds.push(uploaded.public_id);
       }
     }
+
+    const videoPublicIds = [];
+    if (videoFiles.length > 0) {
+      for (const file of videoFiles) {
+        const uploaded = await uploadToCloudinary(file.buffer, "video");
+        videoPublicIds.push(uploaded.public_id);
+      }
+    }
+
+    let taggedUserIds = [];
+    if (Array.isArray(taggedUsers)) {
+      taggedUserIds = taggedUsers;
+    } else if (typeof taggedUsers === "string" && taggedUsers) {
+      taggedUserIds = [taggedUsers];
+    }
+
+    const parseMediaOrder = (orderInput, imageCount, videoCount) => {
+      const rawEntries = Array.isArray(orderInput)
+        ? orderInput
+        : orderInput
+          ? [orderInput]
+          : [];
+
+      const normalized = [];
+
+      rawEntries.forEach((entry) => {
+        try {
+          const parsedEntry = typeof entry === "string" ? JSON.parse(entry) : entry;
+          const mediaType = parsedEntry?.type;
+          const mediaIndex = Number(parsedEntry?.index);
+
+          if (
+            (mediaType === "image" || mediaType === "video") &&
+            Number.isInteger(mediaIndex) &&
+            mediaIndex >= 0 &&
+            ((mediaType === "image" && mediaIndex < imageCount) ||
+              (mediaType === "video" && mediaIndex < videoCount))
+          ) {
+            normalized.push({ type: mediaType, index: mediaIndex });
+          }
+        } catch (error) {
+          // Ignore malformed mediaOrder entries and fallback below.
+        }
+      });
+
+      const usedImageIndexes = new Set(
+        normalized.filter((item) => item.type === "image").map((item) => item.index)
+      );
+      const usedVideoIndexes = new Set(
+        normalized.filter((item) => item.type === "video").map((item) => item.index)
+      );
+
+      for (let i = 0; i < imageCount; i += 1) {
+        if (!usedImageIndexes.has(i)) {
+          normalized.push({ type: "image", index: i });
+        }
+      }
+
+      for (let i = 0; i < videoCount; i += 1) {
+        if (!usedVideoIndexes.has(i)) {
+          normalized.push({ type: "video", index: i });
+        }
+      }
+
+      return normalized;
+    };
+
+    const parsedMediaOrder = parseMediaOrder(
+      mediaOrder,
+      mediaPublicIds.length,
+      videoPublicIds.length
+    );
 
     // ------------------- Tạo bài viết -------------------
     const newPost = await postModel.create({
       author,
       postedByType,
       postedById,
-      content,
+      content: normalizedContent,
       media: mediaPublicIds,
+      videos: videoPublicIds,
+      mediaOrder: parsedMediaOrder,
+      taggedUsers: taggedUserIds,
     });
 
     // Populate
     const populatedPost = await postModel
       .findById(newPost._id)
-      .populate("author", "fullName avatar slug")
-      .populate("postedById", "fullName name avatar coverPhoto slug")
+      .populate({
+        path: "author",
+        select: "fullName avatar slug badgeInventory isVerifiedAccount",
+        populate: {
+          path: "badgeInventory.badgeId",
+          select: "name tier description",
+        },
+      })
+      .populate(
+        "postedById",
+        "fullName name avatar coverPhoto slug isVerifiedAccount"
+      )
+      .populate("taggedUsers", "fullName avatar slug isVerifiedAccount")
       .lean();
 
     // ------------------- Notification -------------------
@@ -114,6 +227,17 @@ const createPost = async (req, res) => {
       await sendNotificationToFriends(author, "new_post", {
         postId: newPost._id,
       });
+    }
+
+    if (taggedUserIds.length > 0) {
+      const notifyUserIds = taggedUserIds.filter(
+        (id) => id.toString() !== author.toString()
+      );
+      if (notifyUserIds.length > 0) {
+        await sendNotification(notifyUserIds, author, "tagged_in_post", {
+          postId: newPost._id,
+        });
+      }
     }
 
     return res.status(201).json({
@@ -134,48 +258,52 @@ const createPost = async (req, res) => {
 // 📜 Lấy danh sách bài viết (có phân trang)
 //
 const getPosts = async (req, res) => {
-    try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
-        const skip = (page - 1) * limit;
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
-        const posts = await postModel
-            .find()
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .populate({
-                path: "author",
-                select: "fullName avatar slug badgeInventory isVerifiedAccount",
-                populate: {
-                    path: "badgeInventory.badgeId",
-                    select: "name tier description", // lấy các field cần thiết
-                },
-            })
-            .populate("postedById", "fullName name slug avatar coverPhoto isVerifiedAccount")
-            .populate({
-                path: "reactions",
-                populate: { path: "user", select: "fullName avatar" },
-            });
+    const posts = await postModel
+      .find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate({
+        path: "author",
+        select: "fullName avatar slug badgeInventory isVerifiedAccount",
+        populate: {
+          path: "badgeInventory.badgeId",
+          select: "name tier description", // lấy các field cần thiết
+        },
+      })
+      .populate(
+        "postedById",
+        "fullName name slug avatar coverPhoto isVerifiedAccount"
+      )
+      .populate("taggedUsers", "fullName avatar slug")
+      .populate({
+        path: "reactions",
+        populate: { path: "user", select: "fullName avatar" },
+      });
 
-        const total = await postModel.countDocuments();
+    const total = await postModel.countDocuments();
 
-        return res.status(200).json({
-            success: true,
-            posts,
-            pagination: {
-                total,
-                page,
-                pages: Math.ceil(total / limit),
-            },
-        });
-    } catch (error) {
-        console.error("Get posts error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Failed to load posts.",
-        });
-    }
+    return res.status(200).json({
+      success: true,
+      posts,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error("Get posts error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to load posts.",
+    });
+  }
 };
 // const getPosts = async (req, res) => {
 //   try {
@@ -190,12 +318,12 @@ const getPosts = async (req, res) => {
 //         .findById(userId)
 //         .select("friends viewedPosts")
 //         .lean(),
-      
+
 //       shopModel
 //         .find({ followers: userId })
 //         .select("_id")
 //         .lean(),
-      
+
 //       groupModel
 //         .find({ members: userId }) // ✅ Group chỉ có members, không có followers
 //         .select("_id")
@@ -210,7 +338,7 @@ const getPosts = async (req, res) => {
 //     }
 
 //     const friendIds = user.friends || [];
-//     const viewedPostIds = (user.viewedPosts || []).map((id) => 
+//     const viewedPostIds = (user.viewedPosts || []).map((id) =>
 //       id instanceof mongoose.Types.ObjectId ? id : new mongoose.Types.ObjectId(id)
 //     );
 //     const followingShopIds = followingShops.map((shop) => shop._id);
@@ -237,7 +365,7 @@ const getPosts = async (req, res) => {
 //     // ✅ 3. Aggregate với scoring
 //     const posts = await postModel.aggregate([
 //       { $match: query },
-      
+
 //       // Tính engagement score
 //       {
 //         $addFields: {
@@ -247,7 +375,7 @@ const getPosts = async (req, res) => {
 //               { $multiply: [{ $size: { $ifNull: ["$comments", []] } }, 2] },
 //             ],
 //           },
-          
+
 //           // Tính recency score (giờ)
 //           recencyScore: {
 //             $divide: [
@@ -255,7 +383,7 @@ const getPosts = async (req, res) => {
 //               1000 * 60 * 60,
 //             ],
 //           },
-          
+
 //           // Check đã xem chưa
 //           isViewed: {
 //             $cond: {
@@ -266,7 +394,7 @@ const getPosts = async (req, res) => {
 //           },
 //         },
 //       },
-      
+
 //       // Tính final score
 //       {
 //         $addFields: {
@@ -274,12 +402,12 @@ const getPosts = async (req, res) => {
 //             $add: [
 //               // Chưa xem +1000 điểm
 //               { $cond: [{ $eq: ["$isViewed", false] }, 1000, 0] },
-              
+
 //               // Engagement score
 //               "$engagementScore",
-              
+
 //               // Bài mới hơn = điểm cao hơn
-//               { 
+//               {
 //                 $divide: [
 //                   100,
 //                   { $add: ["$recencyScore", 1] }
@@ -289,15 +417,15 @@ const getPosts = async (req, res) => {
 //           },
 //         },
 //       },
-      
+
 //       // Sắp xếp
-//       { 
-//         $sort: { 
-//           finalScore: -1, 
-//           createdAt: -1 
-//         } 
+//       {
+//         $sort: {
+//           finalScore: -1,
+//           createdAt: -1
+//         }
 //       },
-      
+
 //       { $skip: skip },
 //       { $limit: limit },
 //     ]);
@@ -318,9 +446,9 @@ const getPosts = async (req, res) => {
 //       },
 //       {
 //         path: "reactions",
-//         populate: { 
-//           path: "user", 
-//           select: "fullName avatar slug" 
+//         populate: {
+//           path: "user",
+//           select: "fullName avatar slug"
 //         },
 //       },
 //     ]);
@@ -396,6 +524,7 @@ const getPostsByOwner = async (req, res) => {
         },
       })
       .populate("postedById", "fullName name slug avatar coverPhoto")
+      .populate("taggedUsers", "fullName avatar slug")
       .populate({
         path: "reactions",
         populate: { path: "user", select: "fullName avatar slug" },
@@ -434,6 +563,7 @@ const getPostById = async (req, res) => {
         },
       })
       .populate("postedById", "fullName name avatar coverPhoto slug")
+      .populate("taggedUsers", "fullName avatar slug")
       .populate({
         path: "reactions",
         populate: { path: "user", select: "fullName avatar slug" },
@@ -520,9 +650,19 @@ const deletePost = async (req, res) => {
       });
     }
 
-    // Xoá ảnh khỏi server
+    // Xoá media khỏi Cloudinary
     if (post.media?.length) {
-        await deleteManyFromCloudinary(post.media);
+      await deleteManyFromCloudinary(post.media);
+    }
+
+    if (post.videos?.length) {
+      await Promise.allSettled(
+        post.videos.map((videoPublicId) =>
+          cloudinary.uploader.destroy(videoPublicId, {
+            resource_type: "video",
+          })
+        )
+      );
     }
 
     await postModel.findByIdAndDelete(postId);
@@ -618,7 +758,9 @@ const addReply = async (req, res) => {
         .json({ success: false, message: "Reply content is empty." });
     }
 
-    const parentComment = await commentModel.findById(commentId).populate('user', '_id');
+    const parentComment = await commentModel
+      .findById(commentId)
+      .populate("user", "_id");
     if (!parentComment)
       return res
         .status(404)
@@ -641,11 +783,16 @@ const addReply = async (req, res) => {
 
     // 🔔 Gửi thông báo cho người được reply (chủ comment gốc)
     if (parentComment.user._id.toString() !== userId.toString()) {
-      await sendNotification([parentComment.user._id], userId, "reply_comment", {
-        postId: post._id,
-        commentId: newReply._id,
-        parentCommentId: commentId,
-      });
+      await sendNotification(
+        [parentComment.user._id],
+        userId,
+        "reply_comment",
+        {
+          postId: post._id,
+          commentId: newReply._id,
+          parentCommentId: commentId,
+        }
+      );
     }
 
     // 🔔 Gửi thông báo cho chủ bài viết (nếu khác người reply và khác người được reply)

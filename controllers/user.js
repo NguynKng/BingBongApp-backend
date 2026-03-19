@@ -197,6 +197,29 @@ const setAvatar = async (req, res) => {
   }
 };
 
+const renameUserProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { fullName } = req.body;
+    const user = await userModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    user.fullName = fullName || user.fullName;
+    await user.save();
+    return res.status(200).json({
+      success: true,
+      message: "User renamed successfully",
+      data: fullName,
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ✅ Set Cover Photo
 const setCoverPhoto = async (req, res) => {
   const { type, id } = req.body;
@@ -847,4 +870,5 @@ module.exports = {
   deleteUserRingtone,
   setActiveRingtone,
   renameUserRingtone,
+  renameUserProfile,
 };

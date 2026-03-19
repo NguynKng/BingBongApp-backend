@@ -7,7 +7,6 @@ const ensureDirectoryExists = (directory) => {
   }
 };
 
-// memoryStorage: Không lưu file vào disk
 const storage = multer.memoryStorage();
 
 const imageFilter = (req, file, cb) => {
@@ -15,6 +14,20 @@ const imageFilter = (req, file, cb) => {
     return cb(new Error("Only image files allowed!"), false);
   }
   cb(null, true);
+};
+
+const postMediaFilter = (req, file, cb) => {
+  if (file.fieldname === "images" && file.mimetype.startsWith("image/")) {
+    cb(null, true);
+    return;
+  }
+
+  if (file.fieldname === "videos" && file.mimetype.startsWith("video/")) {
+    cb(null, true);
+    return;
+  }
+
+  cb(new Error("Only image files for images and video files for videos are allowed!"), false);
 };
 
 const audioFilter = (req, file, cb) => {
@@ -33,7 +46,6 @@ const videoFilter = (req, file, cb) => {
 };
 
 const shortVideoFilter = (req, file, cb) => {
-  // Check if it's video field
   if (file.fieldname === 'video') {
     if (file.mimetype.startsWith('video/')) {
       cb(null, true);
@@ -41,7 +53,6 @@ const shortVideoFilter = (req, file, cb) => {
       cb(new Error("Only video files allowed for video field!"), false);
     }
   }
-  // Check if it's thumbnail field
   else if (file.fieldname === 'thumbnail') {
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
@@ -69,9 +80,12 @@ const uploadCoverPhoto = multer({
 
 const uploadPostImages = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: imageFilter,
-}).array("images", 10);
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: postMediaFilter,
+}).fields([
+  { name: "images", maxCount: 10 },
+  { name: "videos", maxCount: 3 },
+]);
 
 const uploadChatImages = multer({
   storage,
@@ -96,13 +110,13 @@ const uploadRingtone = multer({
 
 const uploadVideo = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: videoFilter,
 }).single("video");
 
 const uploadShortVideo = multer({
   storage,
-  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB for short videos
+  limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: shortVideoFilter,
 }).fields([
   { name: "video", maxCount: 1 },
