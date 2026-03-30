@@ -20,5 +20,6 @@ module.exports = {
     EMAIL_PASS: process.env.EMAIL_PASS,
     GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
     PERSPECTIVE_API_KEY: process.env.PERSPECTIVE_API_KEY,
-    TMDB_API_KEY: process.env.TMDB_API_KEY
+    TMDB_API_KEY: process.env.TMDB_API_KEY,
+    RAWG_API_KEY: process.env.RAWG_API_KEY
 }
